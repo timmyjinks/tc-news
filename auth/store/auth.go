@@ -1,4 +1,7 @@
 package store
 
-func (s *RedisStore) Refresh() {
+import ()
+
+func (s *RedisStore) Refresh(refreshToken string) error {
+	return nil
 }
