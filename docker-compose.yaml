@@ -1,0 +1,92 @@
+services:
+  # gateway:
+  #   build:
+  #     context: ./gateway
+  #     dockerfile: ./cmd/Dockerfile
+
+  subscribe:
+    build:
+      context: ./subscribe
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - subscribe
+  subscribe-db:
+    image: "postgres:16"
+    ports:
+      - "5432:5432"
+    networks:
+      - subscribe
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+  user:
+    build:
+      context: ./user
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8081:8080"
+    networks:
+      - subscribe
+  user-db:
+    image: "postgres:16"
+    networks:
+      - subscribe
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+  #
+  # vote:
+  #   build:
+  #     context: ./vote
+  #     dockerfile: ./cmd/Dockerfile
+  # vote-db:
+  #   image: "postgres:16"
+  #
+  post:
+    build:
+      context: ./post
+      dockerfile: ./cmd/Dockerfile
+    ports: 
+      - "8083:8080"
+    networks:
+      - subscribe
+  post-db:
+    image: "postgres:16"
+    networks:
+      - subscribe
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+  
+  comment:
+    build:
+      context: ./comment
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8082:8080"
+    networks:
+      - subscribe
+  comment-db:
+    networks:
+      - subscribe
+    image: "postgres:16"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+ 
+  # auth:
+  #   build:
+  #     context: ./auth
+  #     dockerfile: ./cmd/Dockerfile
+  # auth-db:
+  #   image: "redis"
+  #
+  # kafka:
+  #   image: "kafka"
+
+networks:
+  subscribe:
