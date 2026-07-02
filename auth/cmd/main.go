@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/timmyjinks/auth/database"
 	"github.com/timmyjinks/auth/store"
 )
@@ -10,12 +8,8 @@ import (
 func main() {
 	config := Load()
 
-	db, err := database.NewPostgresStorage()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	store := store.NewPostgreStore(db)
+	db := database.NewRedisStorage()
+	store := store.NewRedisStore(db)
 
 	app := application{
 		store: store,

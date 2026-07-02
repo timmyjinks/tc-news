@@ -8,6 +8,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
 	github.com/redis/go-redis/v9 v9.21.0
+	golang.org/x/oauth2 v0.36.0
 )
 
 require (
