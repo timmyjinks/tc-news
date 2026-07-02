@@ -21,7 +21,12 @@ func (app *application) Run(addr string) error {
 		Handler: r,
 	}
 
-	r.HandleFunc("/users/subscribe", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("healthy"))
+	}).Methods("GET")
+
+	r.HandleFunc("/users/subscriptions", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
 
 		if userId == "" {
@@ -42,7 +47,7 @@ func (app *application) Run(addr string) error {
 
 	}).Methods("GET")
 
-	r.HandleFunc("/posts/{post_id}/subscribe", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/posts/{post_id}/subscriptions", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
 		postId := mux.Vars(r)["post_id"]
 

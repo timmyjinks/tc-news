@@ -38,20 +38,13 @@ func (app *application) Run(addr string) error {
 	}
 
 	r.HandleFunc("/posts", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
-
-		if userId == "" {
-			http.Error(w, "Invalid user id", http.StatusUnauthorized)
-			return
-		}
-
-		subscribers, err := app.store.Get(userId)
+		posts, err := app.store.Get()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if err := json.NewEncoder(w).Encode(subscribers); err != nil {
+		if err := json.NewEncoder(w).Encode(posts); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

@@ -1,7 +1,18 @@
 package store
 
-func (s *PostgreStore) Get(userId string) ([]Post, error) {
-	rows, err := s.db.Query("SELECT * from posts where user_id = $1", userId)
+func (s *PostgreStore) GetById(id string) (Post, error) {
+	row := s.db.QueryRow("SELECT * from posts where id = $1", id)
+
+	var post Post
+	err := row.Scan(&post.Id, &post.UserId, &post.Body, &post.CreatedAt)
+	if err != nil {
+		return Post{}, err
+	}
+	return post, nil
+}
+
+func (s *PostgreStore) Get() ([]Post, error) {
+	rows, err := s.db.Query("SELECT * from posts")
 	if err != nil {
 		return []Post{}, err
 	}
