@@ -27,13 +27,13 @@ The Social Q&A Platform differs significantly from the BookStore example because
 Section 3:
 
 Votes:
-POST /posts/{post_id}/vote
-PUT /posts/{post_id}/vote/{vote_id}
-DELETE /posts/{post_id}/vote
+POST /posts/{post_id}/votes
+PUT /posts/{post_id}/votes/{vote_id}
+DELETE /posts/{post_id}/votes
 
-POST /posts/{post_id}/comments/{comment_id}/vote
-PUT /posts/{post_id}/comments/{comment_id}/vote/{vote_id}
-DELETE /posts/{post_id}/comments/{comment_id}/vote/{vote_id}
+POST /posts/{post_id}/comments/{comment_id}/votes
+PUT /posts/{post_id}/comments/{comment_id}/votes/{vote_id}
+DELETE /posts/{post_id}/comments/{comment_id}/votes/{vote_id}
 
 Comments:
 GET /posts/{post_id}/comments
@@ -43,8 +43,8 @@ DELETE /posts/{post_id}/comments/{comment_id}
 
 Subscriptions:
 GET /users/{user_id}/subscriptions
-POST /posts/{post_id}/subscribe
-DELETE /posts/{post_id}/subscribe
+POST /posts/{post_id}/subscriptions
+DELETE /posts/{post_id}/subscriptions
 
 Posts:
 GET /posts
@@ -54,14 +54,7 @@ DELETE /posts/{post_id}
 
 Notifications:
 GET /notifications
-POST /notifications/mark_read
-
-Users:
-GET /users
-GET /users/{user_id}
-POST /users
-PUT /users/{user_id}
-DELETE /users/{user_id}
+POST /notifications/
 
 Auth:
 POST /auth/refresh 
