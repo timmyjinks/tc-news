@@ -127,6 +127,10 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 	bearer := r.Header.Get("Authorization")
 	refreshTokenCookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		http.Error(w, "not authorized user", http.StatusUnauthorized)
+		return
+	}
 
 	const prefix = "Bearer "
 	if !strings.HasPrefix(bearer, prefix) {
@@ -154,6 +158,10 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := app.verifyToken(tokenString)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 	name, err := data.GetSubject()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
