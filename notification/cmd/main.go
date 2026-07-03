@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/timmyjinks/vote/database"
-	"github.com/timmyjinks/vote/store"
+	"github.com/timmyjinks/notification/database"
+	"github.com/timmyjinks/notification/store"
 )
 
 func main() {

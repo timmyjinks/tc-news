@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/timmyjinks/comment/store"
@@ -12,13 +11,6 @@ import (
 
 type application struct {
 	store *store.PostgreStore
-}
-
-type Comment struct {
-	Id        string    `json:"id"`
-	ParentId  string    `json:"parent_id"`
-	Body      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 type CommentCreate struct {
@@ -38,8 +30,35 @@ func (app *application) Run(addr string) error {
 		Handler: r,
 	}
 
+	r.HandleFunc("/comments/{comment_id}", func(w http.ResponseWriter, r *http.Request) {
+		commentId := mux.Vars(r)["comment_id"]
+
+		if commentId == "" {
+			http.Error(w, "Comment does not exist", http.StatusBadRequest)
+			return
+		}
+
+		comment, err := app.store.GetById(commentId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := json.NewEncoder(w).Encode(comment); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+	}).Methods("GET")
+
 	r.HandleFunc("/posts/{post_id}/comments", func(w http.ResponseWriter, r *http.Request) {
 		postId := mux.Vars(r)["post_id"]
+
+		if postId == "" {
+			http.Error(w, "Post does not exist", http.StatusBadRequest)
+			return
+		}
+
 		comments, err := app.store.Get(postId)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -57,20 +76,20 @@ func (app *application) Run(addr string) error {
 		userId := r.Header.Get("X-User-ID")
 		postId := mux.Vars(r)["post_id"]
 
-		var comment CommentCreate
-		err := json.NewDecoder(r.Body).Decode(&comment)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
 		if userId == "" {
-			http.Error(w, "Invalid user id", http.StatusUnauthorized)
+			http.Error(w, "StatusUnauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		if postId == "" {
 			http.Error(w, "Post does not exist", http.StatusBadRequest)
+			return
+		}
+
+		var comment CommentCreate
+		err := json.NewDecoder(r.Body).Decode(&comment)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -85,15 +104,12 @@ func (app *application) Run(addr string) error {
 		}
 	}).Methods("POST")
 
-	r.HandleFunc("/posts/{post_id}/comments/{id}", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/comments/{comment_id}", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
-		postId := mux.Vars(r)["post_id"]
-		commentId := mux.Vars(r)["id"]
+		commentId := mux.Vars(r)["comment_id"]
 
-		var comment CommentUpdate
-		err := json.NewDecoder(r.Body).Decode(&comment)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if commentId == "" {
+			http.Error(w, "Comment does not exist", http.StatusBadRequest)
 			return
 		}
 
@@ -102,8 +118,10 @@ func (app *application) Run(addr string) error {
 			return
 		}
 
-		if postId == "" {
-			http.Error(w, "Post does not exist", http.StatusBadRequest)
+		var comment CommentUpdate
+		err := json.NewDecoder(r.Body).Decode(&comment)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -117,14 +135,12 @@ func (app *application) Run(addr string) error {
 		}
 	}).Methods("PUT")
 
-	r.HandleFunc("/posts/{post_id}/comments/{id}", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/comments/{comment_id}", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
-		commentId := mux.Vars(r)["id"]
+		commentId := mux.Vars(r)["comment_id"]
 
-		var comment CommentUpdate
-		err := json.NewDecoder(r.Body).Decode(&comment)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if commentId == "" {
+			http.Error(w, "Comment does not exist", http.StatusBadRequest)
 			return
 		}
 

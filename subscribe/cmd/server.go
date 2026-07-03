@@ -21,11 +21,6 @@ func (app *application) Run(addr string) error {
 		Handler: r,
 	}
 
-	r.HandleFunc("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("healthy"))
-	}).Methods("GET")
-
 	r.HandleFunc("/users/subscriptions", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
 
@@ -34,17 +29,16 @@ func (app *application) Run(addr string) error {
 			return
 		}
 
-		subscribers, err := app.store.Get(userId)
+		subscriptions, err := app.store.Get(userId)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if err := json.NewEncoder(w).Encode(subscribers); err != nil {
+		if err := json.NewEncoder(w).Encode(subscriptions); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
 	}).Methods("GET")
 
 	r.HandleFunc("/posts/{post_id}/subscriptions", func(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +64,27 @@ func (app *application) Run(addr string) error {
 			return
 		}
 	}).Methods("POST")
+
+	r.HandleFunc("/posts/{post_id}/subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		userId := r.Header.Get("X-User-ID")
+		postId := mux.Vars(r)["post_id"]
+
+		if userId == "" {
+			http.Error(w, "Invalid user id", http.StatusUnauthorized)
+			return
+		}
+
+		if postId == "" {
+			http.Error(w, "Post does not exist", http.StatusBadRequest)
+			return
+		}
+
+		err := app.store.Delete(postId, userId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}).Methods("DELETE")
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()

@@ -1,5 +1,17 @@
 package store
 
+func (s *PostgreStore) GetById(commentId string) (Comment, error) {
+	row := s.db.QueryRow("SELECT * from comments where id = $1", commentId)
+
+	var comment Comment
+	err := row.Scan(&comment.Id, &comment.PostId, &comment.UserId, &comment.Body, &comment.CreatedAt)
+	if err != nil {
+		return Comment{}, err
+	}
+
+	return comment, nil
+}
+
 func (s *PostgreStore) Get(postId string) ([]Comment, error) {
 	rows, err := s.db.Query("SELECT * from comments where post_id = $1", postId)
 	if err != nil {
@@ -9,12 +21,12 @@ func (s *PostgreStore) Get(postId string) ([]Comment, error) {
 
 	var comments []Comment
 	for rows.Next() {
-		var follow Comment
-		err := rows.Scan(&follow)
+		var comment Comment
+		err := rows.Scan(&comment.Id, &comment.PostId, &comment.UserId, &comment.Body, &comment.CreatedAt)
 		if err != nil {
 			return []Comment{}, err
 		}
-		comments = append(comments, follow)
+		comments = append(comments, comment)
 	}
 
 	return comments, nil

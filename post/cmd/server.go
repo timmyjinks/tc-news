@@ -51,18 +51,32 @@ func (app *application) Run(addr string) error {
 
 	}).Methods("GET")
 
+	r.HandleFunc("/posts/{post_id}", func(w http.ResponseWriter, r *http.Request) {
+		postId := mux.Vars(r)["post_id"]
+		posts, err := app.store.GetById(postId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := json.NewEncoder(w).Encode(posts); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}).Methods("GET")
+
 	r.HandleFunc("/posts", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
+
+		if userId == "" {
+			http.Error(w, "Invalid user id", http.StatusUnauthorized)
+			return
+		}
 
 		var post PostCreate
 		err := json.NewDecoder(r.Body).Decode(&post)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if userId == "" {
-			http.Error(w, "Invalid user id", http.StatusUnauthorized)
 			return
 		}
 
@@ -75,19 +89,24 @@ func (app *application) Run(addr string) error {
 		}
 	}).Methods("POST")
 
-	r.HandleFunc("/posts/{id}", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/posts/{post_id}", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
-		postId := mux.Vars(r)["id"]
-
-		var post PostCreate
-		err := json.NewDecoder(r.Body).Decode(&post)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		postId := mux.Vars(r)["post_id"]
 
 		if userId == "" {
 			http.Error(w, "Invalid user id", http.StatusUnauthorized)
+			return
+		}
+
+		if postId == "" {
+			http.Error(w, "Post does not exist", http.StatusBadRequest)
+			return
+		}
+
+		var post PostUpdate
+		err := json.NewDecoder(r.Body).Decode(&post)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -101,19 +120,17 @@ func (app *application) Run(addr string) error {
 		}
 	}).Methods("PUT")
 
-	r.HandleFunc("/posts/{id}", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/posts/{post_id}", func(w http.ResponseWriter, r *http.Request) {
 		userId := r.Header.Get("X-User-ID")
-		postId := mux.Vars(r)["id"]
-
-		var post PostCreate
-		err := json.NewDecoder(r.Body).Decode(&post)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+		postId := mux.Vars(r)["post_id"]
 
 		if userId == "" {
 			http.Error(w, "Invalid user id", http.StatusUnauthorized)
+			return
+		}
+
+		if postId == "" {
+			http.Error(w, "Post does not exist", http.StatusBadRequest)
 			return
 		}
 

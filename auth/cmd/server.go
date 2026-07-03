@@ -14,10 +14,9 @@ import (
 	"github.com/timmyjinks/auth/store"
 )
 
-var signingKey = []byte("sldfkjdskfjsdkfjdkjfskjfdkjfksjkdfjk")
-
 type application struct {
-	store *store.RedisStore
+	store     *store.RedisStore
+	jwtSecret string
 }
 
 type Login struct {
@@ -79,8 +78,6 @@ func (app *application) Run(addr string) error {
 		bearer := r.Header.Get("Authorization")
 		refreshTokenCookie, err := r.Cookie("refresh_token")
 
-		fmt.Println("b", bearer)
-
 		const prefix = "Bearer "
 		if !strings.HasPrefix(bearer, prefix) {
 			http.Error(w, "not authorized user", http.StatusUnauthorized)
@@ -88,7 +85,6 @@ func (app *application) Run(addr string) error {
 		}
 
 		tokenString := strings.TrimPrefix(bearer, prefix)
-		fmt.Println("token", tokenString)
 
 		exists, err := app.store.Exists(refreshTokenCookie.Value)
 		if err != nil {
@@ -153,21 +149,21 @@ func generateRefreshToken() string {
 	return base64.RawURLEncoding.EncodeToString(tokenBytes)
 }
 
-func generateAccessToken(data store.Data) (string, error) {
+func (app *application) generateAccessToken(data store.Data) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Issuer:    "tysoncloud",
 		Subject:   data.Name,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(data.TTL)),
 	})
-	return token.SignedString(signingKey)
+	return token.SignedString(app.jwtSecret)
 }
 
-func verifyToken(tokenString string) (jwt.MapClaims, error) {
+func (app *application) verifyToken(tokenString string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return signingKey, nil
+		return app.jwtSecret, nil
 	})
 	if err != nil {
 		return nil, err

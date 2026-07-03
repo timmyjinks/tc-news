@@ -8,18 +8,18 @@ import (
 )
 
 func NewPostgresStorage() (*sql.DB, error) {
-	db, err := sql.Open("postgres", "postgres://postgres:password@vote-db:5432/postgres?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:password@notification-db:5432/postgres?sslmode=disable")
 	if err != nil {
 		return nil, err
 	}
 
 	if _, err := db.Exec(`
-    CREATE TABLE IF NOT EXISTS votes (
+    CREATE TABLE IF NOT EXISTS notifications(
         id         SERIAL PRIMARY KEY,
-        post_id    INT, 
-        comment_id INT,
         user_id    INT NOT NULL,
-        value 		 INT NOT NULL,
+				body 			 TEXT, 
+				read       BOOLEAN NOT NULL DEFAULT false
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
 `); err != nil {
 		log.Fatal("Failed to create table:", err)
