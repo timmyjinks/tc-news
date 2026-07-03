@@ -1,12 +1,12 @@
 services:
-  gateway:
-    build:
-      context: ./gateway
-      dockerfile: ./cmd/Dockerfile
-    networks:
-      - tc-news
-    ports: 
-      - "8080:80"
+  # gateway:
+  #   build:
+  #     context: ./gateway
+  #     dockerfile: ./cmd/Dockerfile
+  #   networks:
+  #     - tc-news
+  #   ports:
+  #     - "8080:80"
 
   subscription:
     build:
@@ -107,10 +107,10 @@ services:
     networks:
       - tc-news
 
-  kafka:
+  kafka-service:
     image: apache/kafka:latest
     networks:
-      - tc-news 
+      - tc-news
     environment:
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_NODE_ID: 1

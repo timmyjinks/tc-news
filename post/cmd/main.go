@@ -7,6 +7,12 @@ import (
 	"github.com/timmyjinks/post/store"
 )
 
+// @title           Post Service API
+// @version         3.0
+// @description     Handles creating, reading, updating, and deleting posts.
+// @host            localhost:8081
+// @BasePath        /
+
 func main() {
 	config := Load()
 

@@ -17,61 +17,86 @@ type VoteInsert struct {
 	Value int `json:"value"`
 }
 
+// ListNotifications godoc
+// @Summary      List a user's notifications
+// @Description  Retrieves all notifications for the authenticated user
+// @Tags         notifications
+// @Produce      json
+// @Param        X-User-ID  header    string  true  "ID of the authenticated user"
+// @Success      200        {array}   store.Notification
+// @Failure      401        {string}  string  "unauthorized"
+// @Failure      500        {string}  string  "Internal server error"
+// @Router       /user/notifications [get]
+func (app *application) ListNotifications(w http.ResponseWriter, r *http.Request) {
+	userId := r.Header.Get("X-User-ID")
+	if userId == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	notifications, err := app.store.Get(userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(&notifications)
+}
+
+// MarkNotificationRead godoc
+// @Summary      Mark a notification as read
+// @Description  Marks a single notification as read for the authenticated user
+// @Tags         notifications
+// @Param        notification_id  path      string  true  "Notification ID"
+// @Param        X-User-ID        header    string  true  "ID of the authenticated user"
+// @Success      200              "Notification marked as read"
+// @Failure      401              {string}  string  "unauthorized"
+// @Failure      500              {string}  string  "Internal server error"
+// @Router       /notifications/{notification_id}/read [patch]
+func (app *application) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
+	userId := r.Header.Get("X-User-ID")
+	notificationId := mux.Vars(r)["notification_id"]
+	if userId == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	err := app.store.Update(userId, notificationId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// MarkAllNotificationsRead godoc
+// @Summary      Mark all notifications as read
+// @Description  Marks every notification as read for the authenticated user
+// @Tags         notifications
+// @Param        X-User-ID  header  string  true  "ID of the authenticated user"
+// @Success      200        "All notifications marked as read"
+// @Failure      401        {string}  string  "unauthorized"
+// @Failure      500        {string}  string  "Internal server error"
+// @Router       /notifications/read-all [patch]
+func (app *application) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
+	userId := r.Header.Get("X-User-ID")
+	if userId == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	err := app.store.UpdateAll(userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (app *application) Run(addr string) error {
 	r := mux.NewRouter()
-
 	server := http.Server{
 		Addr:    addr,
 		Handler: r,
 	}
 
-	r.HandleFunc("/user/notifications", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
-
-		if userId == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		notifications, err := app.store.Get(userId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		json.NewEncoder(w).Encode(&notifications)
-	}).Methods("GET")
-
-	r.HandleFunc("/notifications/{notification_id}/read", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
-		notificationId := mux.Vars(r)["notification_id"]
-
-		if userId == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		err := app.store.Update(userId, notificationId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}).Methods("PATCH")
-
-	r.HandleFunc("/notifications/read-all", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
-
-		if userId == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		err := app.store.UpdateAll(userId)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}).Methods("PATCH")
+	r.HandleFunc("/user/notifications", app.ListNotifications).Methods("GET")
+	r.HandleFunc("/notifications/{notification_id}/read", app.MarkNotificationRead).Methods("PATCH")
+	r.HandleFunc("/notifications/read-all", app.MarkAllNotificationsRead).Methods("PATCH")
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()

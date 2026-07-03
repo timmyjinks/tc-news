@@ -1,0 +1,100 @@
+openapi: 3.0.0
+info:
+  contact: {}
+  description: Handles login and token refresh for the auth service.
+  title: Auth Service API
+  version: "3.0"
+paths:
+  /auth/login:
+    post:
+      description: Validates credentials, issues a short-lived access token, and sets
+        a refresh token cookie
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.Login"
+        description: Login credentials
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AccessTokenResponse"
+        "400":
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: failed to create session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: Log in with a username and password
+      tags:
+        - auth
+  /auth/refresh:
+    post:
+      description: Exchanges a valid refresh token cookie + bearer access token for a
+        new access/refresh token pair
+      parameters:
+        - description: Bearer access token
+          in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AccessTokenResponse"
+        "401":
+          description: not authorized / session expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: Refresh an access token
+      tags:
+        - auth
+servers:
+  - url: //localhost:8080
+components:
+  schemas:
+    main.AccessTokenResponse:
+      properties:
+        access_token:
+          type: string
+      type: object
+    main.ErrorResponse:
+      properties:
+        error:
+          type: string
+      type: object
+    main.Login:
+      properties:
+        name:
+          type: string
+        password:
+          type: string
+      type: object

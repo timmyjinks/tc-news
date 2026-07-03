@@ -7,6 +7,12 @@ import (
 	"github.com/timmyjinks/follow/store"
 )
 
+// @title           Follow Service API
+// @version         3.0
+// @description     API for subscribing to and unsubscribing from post updates.
+// @host            localhost:8080
+// @BasePath        /
+
 func main() {
 	config := Load()
 

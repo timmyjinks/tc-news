@@ -1,0 +1,90 @@
+basePath: /
+definitions:
+  main.AccessTokenResponse:
+    properties:
+      access_token:
+        type: string
+    type: object
+  main.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  main.Login:
+    properties:
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Handles login and token refresh for the auth service.
+  title: Auth Service API
+  version: "3.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Validates credentials, issues a short-lived access token, and sets
+        a refresh token cookie
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/main.Login'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AccessTokenResponse'
+        "400":
+          description: missing or malformed body
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: failed to create session
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: internal error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Log in with a username and password
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      description: Exchanges a valid refresh token cookie + bearer access token for
+        a new access/refresh token pair
+      parameters:
+      - description: Bearer access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AccessTokenResponse'
+        "401":
+          description: not authorized / session expired
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: internal error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Refresh an access token
+      tags:
+      - auth
+swagger: "2.0"

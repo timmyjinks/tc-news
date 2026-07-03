@@ -1,0 +1,209 @@
+openapi: 3.0.0
+info:
+  contact: {}
+  description: Handles creating, reading, updating, and deleting posts.
+  title: Post Service API
+  version: "3.0"
+paths:
+  /posts:
+    get:
+      description: Returns every post
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/main.Post"
+                type: array
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: List all posts
+      tags:
+        - posts
+    post:
+      description: Creates a new post for the requesting user
+      parameters:
+        - description: Requesting user's ID
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.PostCreate"
+        description: Post body
+        required: true
+      responses:
+        "200":
+          description: post created
+        "400":
+          description: missing/malformed body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: missing user id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: Create a post
+      tags:
+        - posts
+  "/posts/{post_id}":
+    delete:
+      description: Deletes a post owned by the requesting user
+      parameters:
+        - description: Requesting user's ID
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+        - description: Post ID
+          in: path
+          name: post_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: post deleted
+        "400":
+          description: missing post id
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: missing user id
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            "*/*":
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: Delete a post
+      tags:
+        - posts
+    get:
+      description: Returns one post by ID
+      parameters:
+        - description: Post ID
+          in: path
+          name: post_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.Post"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: Get a single post
+      tags:
+        - posts
+    put:
+      description: Updates an existing post's body
+      parameters:
+        - description: Requesting user's ID
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+        - description: Post ID
+          in: path
+          name: post_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.PostUpdate"
+        description: Updated post body
+        required: true
+      responses:
+        "200":
+          description: post updated
+        "400":
+          description: missing post id or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: missing user id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      summary: Update a post
+      tags:
+        - posts
+servers:
+  - url: //localhost:8081
+components:
+  schemas:
+    main.ErrorResponse:
+      properties:
+        error:
+          type: string
+      type: object
+    main.Post:
+      properties:
+        body:
+          type: string
+        created_at:
+          type: string
+        id:
+          type: string
+        user_id:
+          type: string
+      type: object
+    main.PostCreate:
+      properties:
+        body:
+          type: string
+      type: object
+    main.PostUpdate:
+      properties:
+        body:
+          type: string
+      type: object

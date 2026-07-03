@@ -1,11 +1,20 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 
 	"github.com/timmyjinks/notification/database"
+	"github.com/timmyjinks/notification/kafka"
 	"github.com/timmyjinks/notification/store"
 )
+
+// @title           Notification Service API
+// @version         3.0
+// @description     API for listing and marking user notifications as read.
+// @host            localhost:8080
+// @BasePath        /
 
 func main() {
 	config := Load()
@@ -20,6 +29,26 @@ func main() {
 	app := application{
 		store: store,
 	}
+
+	queue := kafka.NewKafkaService("notifications")
+
+	ctx := context.Background()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("[INFO] image worker shutting down")
+				return
+			default:
+				msg, err := queue.Consumer.Read(context.Background())
+				if err != nil {
+					log.Println("[WARN]", err)
+					continue
+				}
+				fmt.Println("consumed", msg)
+			}
+		}
+	}()
 
 	app.Run(config.addr)
 }

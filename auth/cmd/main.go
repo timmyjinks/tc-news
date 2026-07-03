@@ -5,6 +5,12 @@ import (
 	"github.com/timmyjinks/auth/store"
 )
 
+// @title           Auth Service API
+// @version         3.0
+// @description     Handles login and token refresh for the auth service.
+// @host            localhost:8080
+// @BasePath        /
+
 func main() {
 	config := Load()
 
@@ -12,7 +18,8 @@ func main() {
 	store := store.NewRedisStore(db)
 
 	app := application{
-		store: store,
+		store:     store,
+		jwtSecret: "testing",
 	}
 
 	app.Run(config.addr)

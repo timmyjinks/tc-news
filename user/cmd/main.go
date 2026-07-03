@@ -7,6 +7,12 @@ import (
 	"github.com/timmyjinks/user/store"
 )
 
+// @title           User Service API
+// @version         3.0
+// @description     API for creating, reading, updating, and deleting users.
+// @host            localhost:8080
+// @BasePath        /
+
 func main() {
 	config := Load()
 

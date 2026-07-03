@@ -1,0 +1,140 @@
+openapi: 3.0.0
+info:
+  contact: {}
+  description: API for creating, reading, updating, and deleting users.
+  title: User Service API
+  version: "3.0"
+paths:
+  /users:
+    post:
+      description: Creates a new user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.UserCreate"
+        description: User payload
+        required: true
+      responses:
+        "201":
+          description: User created
+        "400":
+          description: Invalid body
+          content:
+            "*/*":
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Create a user
+      tags:
+        - users
+  "/users/{id}":
+    delete:
+      description: Deletes a user by ID
+      parameters:
+        - description: User ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User deleted
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Delete a user
+      tags:
+        - users
+    get:
+      description: Retrieves a single user by their ID
+      parameters:
+        - description: User ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.User"
+        "401":
+          description: Invalid user id
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: string
+      summary: Get a user by ID
+      tags:
+        - users
+    put:
+      description: Updates an existing user's name
+      parameters:
+        - description: User ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/main.UserCreate"
+        description: Updated user payload
+        required: true
+      responses:
+        "200":
+          description: User updated
+        "400":
+          description: Invalid body
+          content:
+            "*/*":
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Update a user
+      tags:
+        - users
+servers:
+  - url: //localhost:8080
+components:
+  schemas:
+    main.User:
+      properties:
+        created_at:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      type: object
+    main.UserCreate:
+      properties:
+        name:
+          type: string
+      type: object

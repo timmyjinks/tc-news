@@ -7,6 +7,12 @@ import (
 	"github.com/timmyjinks/comment/store"
 )
 
+// @title           Comment Service API
+// @version         3.0
+// @description     API for creating, reading, updating, and deleting comments on posts.
+// @host            localhost:8080
+// @BasePath        /
+
 func main() {
 	config := Load()
 

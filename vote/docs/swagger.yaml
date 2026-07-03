@@ -1,0 +1,189 @@
+basePath: /
+definitions:
+  main.VoteInsert:
+    properties:
+      value:
+        type: integer
+    type: object
+  store.Vote:
+    properties:
+      id:
+        type: string
+      postId:
+        type: string
+      userId:
+        type: string
+      value:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for casting and removing votes on posts and comments.
+  title: Vote Service API
+  version: "3.0"
+paths:
+  /comments/{comment_id}/votes:
+    delete:
+      description: Removes the authenticated user's vote on a comment
+      parameters:
+      - description: Comment ID
+        in: path
+        name: comment_id
+        required: true
+        type: string
+      - description: ID of the authenticated user
+        in: header
+        name: X-User-ID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Vote removed
+        "401":
+          description: Invalid user id
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Remove a vote from a comment
+      tags:
+      - votes
+    put:
+      consumes:
+      - application/json
+      description: Casts or updates the authenticated user's vote on a comment
+      parameters:
+      - description: Comment ID
+        in: path
+        name: comment_id
+        required: true
+        type: string
+      - description: ID of the authenticated user
+        in: header
+        name: X-User-ID
+        required: true
+        type: string
+      - description: Vote payload
+        in: body
+        name: vote
+        required: true
+        schema:
+          $ref: '#/definitions/main.VoteInsert'
+      responses:
+        "200":
+          description: Vote recorded
+        "400":
+          description: Invalid body
+          schema:
+            type: string
+        "401":
+          description: Invalid user id
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Vote on a comment
+      tags:
+      - votes
+  /posts/{post_id}/votes:
+    delete:
+      description: Removes the authenticated user's vote on a post
+      parameters:
+      - description: Post ID
+        in: path
+        name: post_id
+        required: true
+        type: string
+      - description: ID of the authenticated user
+        in: header
+        name: X-User-ID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Vote removed
+        "401":
+          description: Invalid user id
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Remove a vote from a post
+      tags:
+      - votes
+    put:
+      consumes:
+      - application/json
+      description: Casts or updates the authenticated user's vote on a post
+      parameters:
+      - description: Post ID
+        in: path
+        name: post_id
+        required: true
+        type: string
+      - description: ID of the authenticated user
+        in: header
+        name: X-User-ID
+        required: true
+        type: string
+      - description: Vote payload
+        in: body
+        name: vote
+        required: true
+        schema:
+          $ref: '#/definitions/main.VoteInsert'
+      responses:
+        "200":
+          description: Vote recorded
+        "400":
+          description: Invalid body
+          schema:
+            type: string
+        "401":
+          description: Post does not exist or invalid user id
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Vote on a post
+      tags:
+      - votes
+  /user/votes:
+    get:
+      description: Retrieves all votes cast by the authenticated user
+      parameters:
+      - description: ID of the authenticated user
+        in: header
+        name: X-User-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/store.Vote'
+            type: array
+        "401":
+          description: Invalid user id
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: List a user's votes
+      tags:
+      - votes
+swagger: "2.0"
