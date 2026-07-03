@@ -9,6 +9,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/swaggo/swag v1.16.6
+	golang.org/x/crypto v0.32.0
 )
 
 require (

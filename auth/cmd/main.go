@@ -1,24 +1,33 @@
 package main
 
 import (
+	"log"
+
 	"github.com/timmyjinks/auth/database"
 	"github.com/timmyjinks/auth/store"
 )
 
 // @title           Auth Service API
 // @version         3.0
-// @description     Handles login and token refresh for the auth service.
+// @description     Handles login, token refresh, and user management.
 // @host            localhost:8080
 // @BasePath        /
 
 func main() {
 	config := Load()
 
-	db := database.NewRedisStorage()
-	store := store.NewRedisStore(db)
+	redisDb := database.NewRedisStorage()
+	redisStore := store.NewRedisStore(redisDb)
+
+	postgresDb, err := database.NewPostgresStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	postgresStore := store.NewPostgresStore(postgresDb)
 
 	app := application{
-		store:     store,
+		store:     redisStore,
+		userStore: postgresStore,
 		jwtSecret: "testing",
 	}
 

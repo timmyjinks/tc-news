@@ -12,10 +12,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/timmyjinks/auth/store"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type application struct {
 	store     *store.RedisStore
+	userStore *store.PostgresStore
 	jwtSecret string
 }
 
@@ -28,21 +30,32 @@ type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-// ErrorResponse is a generic error payload.
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type User struct {
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type UserCreate struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
 func (app *application) Run(addr string) error {
 	r := mux.NewRouter()
-
-	server := http.Server{
-		Addr:    addr,
-		Handler: r,
-	}
+	server := http.Server{Addr: addr, Handler: r}
 
 	r.HandleFunc("/auth/login", app.Login).Methods(http.MethodPost)
 	r.HandleFunc("/auth/refresh", app.Refresh).Methods(http.MethodPost)
+
+	r.HandleFunc("/users/{id}", app.GetUser).Methods(http.MethodGet)
+	r.HandleFunc("/users", app.CreateUser).Methods(http.MethodPost)
+	r.HandleFunc("/users/{id}", app.UpdateUser).Methods(http.MethodPut)
+	r.HandleFunc("/users/{id}", app.DeleteUser).Methods(http.MethodDelete)
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()
@@ -50,20 +63,19 @@ func (app *application) Run(addr string) error {
 
 // Login godoc
 // @Summary      Log in with a username and password
-// @Description  Validates credentials, issues a short-lived access token, and sets a refresh token cookie
+// @Description  Validates credentials against stored user records, issues a short-lived access token, and sets a refresh token cookie
 // @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        login  body      Login  true  "Login credentials"
 // @Success      200    {object}  AccessTokenResponse
 // @Failure      400    {object}  ErrorResponse  "missing or malformed body"
-// @Failure      401    {object}  ErrorResponse  "failed to create session"
+// @Failure      401    {object}  ErrorResponse  "invalid credentials"
 // @Failure      500    {object}  ErrorResponse  "internal error"
 // @Router       /auth/login [post]
 func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 	var login Login
-	err := json.NewDecoder(r.Body).Decode(&login)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&login); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -73,9 +85,22 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := store.Data{Name: login.Name, TTL: time.Hour * 24 * 7}
+	user, err := app.userStore.GetByName(login.Name)
+	if err != nil {
+		// Same response whether the user doesn't exist or the DB errored,
+		// so we don't leak which usernames are registered.
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(login.Password)); err != nil {
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	data := store.Data{Name: user.Name, TTL: time.Hour * 24 * 7}
 	refreshToken := generateRefreshToken()
-	accessToken, err := app.generateAccessToken(store.Data{Name: login.Name, TTL: time.Minute * 15})
+	accessToken, err := app.generateAccessToken(store.Data{Name: user.Name, TTL: time.Minute * 15})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,16 +122,8 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(AccessTokenResponse{AccessToken: accessToken})
 }
 
-// Refresh godoc
-// @Summary      Refresh an access token
-// @Description  Exchanges a valid refresh token cookie + bearer access token for a new access/refresh token pair
-// @Tags         auth
-// @Produce      json
-// @Param        Authorization  header    string  true  "Bearer access token"
-// @Success      200            {object}  AccessTokenResponse
-// @Failure      401            {object}  ErrorResponse  "not authorized / session expired"
-// @Failure      500            {object}  ErrorResponse  "internal error"
-// @Router       /auth/refresh [post]
+// Refresh stays unchanged from before — it re-issues tokens from the
+// refresh-token session, it doesn't touch the users table.
 func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 	bearer := r.Header.Get("Authorization")
 	refreshTokenCookie, err := r.Cookie("refresh_token")
@@ -116,7 +133,6 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not authorized user", http.StatusUnauthorized)
 		return
 	}
-
 	tokenString := strings.TrimPrefix(bearer, prefix)
 
 	exists, err := app.store.Exists(refreshTokenCookie.Value)
@@ -128,21 +144,17 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	if !exists {
 		http.Error(w, "unauthorized login again", http.StatusUnauthorized)
 		return
 	}
-
 	if err := app.store.Delete(refreshTokenCookie.String()); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	data, err := app.verifyToken(tokenString)
-
 	name, err := data.GetSubject()
-	fmt.Println(name, "name")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -171,6 +183,87 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(AccessTokenResponse{AccessToken: accessToken})
 }
 
+// GetUser godoc
+// @Router       /users/{id} [get]
+func (app *application) GetUser(w http.ResponseWriter, r *http.Request) {
+	userId := mux.Vars(r)["id"]
+	if userId == "" {
+		http.Error(w, "Invalid user id", http.StatusUnauthorized)
+		return
+	}
+	user, err := app.userStore.GetById(userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(User{
+		Id:        user.Id,
+		Name:      user.Name,
+		CreatedAt: user.CreatedAt,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// CreateUser godoc
+// @Description  Creates a new user with a bcrypt-hashed password
+// @Router       /users [post]
+func (app *application) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var user UserCreate
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if user.Name == "" || user.Password == "" {
+		http.Error(w, "name or password was empty", http.StatusBadRequest)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := app.userStore.Create(store.UserCreate{
+		Name:         user.Name,
+		PasswordHash: string(hash),
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(201)
+}
+
+// UpdateUser godoc
+// @Router       /users/{id} [put]
+func (app *application) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	userId := mux.Vars(r)["id"]
+	var user UserCreate
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := app.userStore.Update(store.UserUpdate{
+		Id:   userId,
+		Name: user.Name,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// DeleteUser godoc
+// @Router       /users/{id} [delete]
+func (app *application) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userId := mux.Vars(r)["id"]
+	if err := app.userStore.Delete(userId); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func generateRefreshToken() string {
 	tokenBytes := make([]byte, 64)
 	rand.Read(tokenBytes)
@@ -196,11 +289,9 @@ func (app *application) verifyToken(tokenString string) (jwt.MapClaims, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
-
 	return claims, nil
 }
