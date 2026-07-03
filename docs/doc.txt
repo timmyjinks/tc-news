@@ -27,34 +27,36 @@ The Social Q&A Platform differs significantly from the BookStore example because
 Section 3:
 
 Votes:
-POST /posts/{post_id}/votes
-PUT /posts/{post_id}/votes/{vote_id}
+GET /user/votes
+PUT /posts/{post_id}/votes
 DELETE /posts/{post_id}/votes
 
-POST /posts/{post_id}/comments/{comment_id}/votes
-PUT /posts/{post_id}/comments/{comment_id}/votes/{vote_id}
-DELETE /posts/{post_id}/comments/{comment_id}/votes/{vote_id}
+PUT /comments/{comment_id}/votes
+DELETE /comments/{comment_id}/votes
 
 Comments:
 GET /posts/{post_id}/comments
+GET /comments/{comment_id}
 POST /posts/{post_id}/comments
-PUT /posts/{post_id}/comments/{comment_id}
-DELETE /posts/{post_id}/comments/{comment_id}
+PUT /comments/{comment_id}
+DELETE /comments/{comment_id}
 
 Subscriptions:
-GET /users/{user_id}/subscriptions
+GET /users/subscriptions
 POST /posts/{post_id}/subscriptions
 DELETE /posts/{post_id}/subscriptions
 
 Posts:
 GET /posts
+GET /posts/{post_id}
 POST /posts
 PUT /posts/{post_id}
 DELETE /posts/{post_id}
 
 Notifications:
-GET /notifications
-POST /notifications/
+GET /user/notifications
+PATCH /notifications/{notification_id}/read
+PATCH /notifications/read-all
 
 Auth:
 POST /auth/refresh 
