@@ -24,8 +24,8 @@ func NewKafkaService(topic string) *KafkaService {
 	}
 
 	p := &kafka.Writer{
-		Addr:  kafka.TCP("kafka-service:9092"),
 		Topic: topic,
+		Addr:  kafka.TCP("kafka-service:9092"),
 	}
 
 	return &KafkaService{

@@ -16,7 +16,7 @@
 #   comment       http://localhost:8084
 #   subscribe     http://localhost:8081
 #   notification  http://localhost:8086
-#   vote          http://localhost:8082   <- NOT enabled by default, see NOTES
+#   vote          http://localhost:8082 
 #
 # ----------------------------------------------------------------------------
 # NOTES on bugs/quirks found while writing this (so failures below make sense
@@ -98,14 +98,10 @@ for pair in "auth:$AUTH/auth/login" "post:$POST/posts" "comment:$COMMENT/posts/x
   code=$(service_up "$url")
   echo "  $name -> $url (HTTP $code, any response means it's up)"
 done
+
 VOTE_UP=1
 vcode=$(service_up "$VOTE/user/votes")
-if [[ "$vcode" == "000" ]]; then
-  echo "  vote -> $VOTE not reachable (expected: it's commented out of docker-compose.yaml by default)"
-  VOTE_UP=0
-else
-  echo "  vote -> $VOTE (HTTP $vcode)"
-fi
+echo "  vote -> $VOTE (HTTP $vcode)"
 
 # ============================================================================
 step "1. AUTH: register two users, log in, refresh a token"
