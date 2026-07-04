@@ -187,6 +187,7 @@ func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
 func (app *application) DeletePost(w http.ResponseWriter, r *http.Request) {
 	userId := r.Header.Get("X-User-ID")
 	postId := mux.Vars(r)["post_id"]
+
 	if userId == "" {
 		http.Error(w, "Invalid user id", http.StatusUnauthorized)
 		return

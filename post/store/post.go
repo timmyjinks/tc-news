@@ -48,6 +48,9 @@ func (s *PostgreStore) Update(f PostUpdate) error {
 }
 
 func (s *PostgreStore) Delete(postId, userId string) error {
-	s.db.Exec("DELETE posts where id = $1 and user_id = $2", postId, userId)
+	_, err := s.db.Exec("DELETE from posts where id = $1 and user_id = $2", postId, userId)
+	if err != nil {
+		return err
+	}
 	return nil
 }

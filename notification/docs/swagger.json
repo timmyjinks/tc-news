@@ -44,6 +44,54 @@
                 }
             }
         },
+        "/notifications/{notification_id}": {
+            "delete": {
+                "description": "Permanently deletes a notification owned by the authenticated user",
+                "tags": [
+                    "notifications"
+                ],
+                "summary": "Delete a notification",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification ID",
+                        "name": "notification_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID of the authenticated user",
+                        "name": "X-User-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification deleted"
+                    },
+                    "400": {
+                        "description": "Notification does not exist",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/{notification_id}/read": {
             "patch": {
                 "description": "Marks a single notification as read for the authenticated user",

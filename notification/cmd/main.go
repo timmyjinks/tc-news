@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/timmyjinks/notification/database"
+	"github.com/timmyjinks/notification/grpcclient"
 	"github.com/timmyjinks/notification/kafka"
 	"github.com/timmyjinks/notification/store"
 )
@@ -30,6 +30,11 @@ func main() {
 		store: store,
 	}
 
+	subscribeClient, err := grpcclient.NewSubscribeClient(config.subscribeGRPCAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	queue := kafka.NewKafkaService("notifications")
 
 	ctx := context.Background()
@@ -37,7 +42,7 @@ func main() {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("[INFO] image worker shutting down")
+				log.Println("[INFO] notification worker shutting down")
 				return
 			default:
 				msg, err := queue.Consumer.Read(context.Background())
@@ -45,7 +50,9 @@ func main() {
 					log.Println("[WARN]", err)
 					continue
 				}
-				fmt.Println("consumed", msg)
+				if err := handleMessage(store, subscribeClient, msg); err != nil {
+					log.Println("[WARN]", err)
+				}
 			}
 		}
 	}()

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -109,14 +110,33 @@ func (app *application) CreateComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := app.store.Create(store.CommentCreate{
+	commentId, err := app.store.Create(store.CommentCreate{
 		ParentId: comment.ParentId,
 		PostId:   postId,
 		UserId:   userId,
 		Body:     comment.Body,
-	}); err != nil {
+	})
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	payload, err := json.Marshal(struct {
+		CommentId string `json:"comment_id"`
+		PostId    string `json:"post_id"`
+		UserId    string `json:"user_id"`
+		Body      string `json:"body"`
+	}{CommentId: commentId, PostId: postId, UserId: userId, Body: comment.Body})
+	if err != nil {
+		log.Println("[WARN] failed to marshal comment_created payload:", err)
+		return
+	}
+
+	if err := app.producer.Producer.Send(r.Context(), "notifications", kafka.Message{
+		Type:    "comment_created",
+		Payload: payload,
+	}); err != nil {
+		log.Println("[WARN] failed to publish comment_created event:", err)
 	}
 }
 

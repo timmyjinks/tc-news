@@ -5,6 +5,46 @@ info:
   title: Notification Service API
   version: "3.0"
 paths:
+  "/notifications/{notification_id}":
+    delete:
+      description: Permanently deletes a notification owned by the authenticated user
+      parameters:
+        - description: Notification ID
+          in: path
+          name: notification_id
+          required: true
+          schema:
+            type: string
+        - description: ID of the authenticated user
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification deleted
+        "400":
+          description: Notification does not exist
+          content:
+            "*/*":
+              schema:
+                type: string
+        "401":
+          description: unauthorized
+          content:
+            "*/*":
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Delete a notification
+      tags:
+        - notifications
   "/notifications/{notification_id}/read":
     patch:
       description: Marks a single notification as read for the authenticated user

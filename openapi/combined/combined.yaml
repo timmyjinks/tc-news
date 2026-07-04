@@ -1,68 +1,65 @@
 openapi: 3.0.0
 info:
   contact: {}
-  description: Handles login and token refresh for the auth service.
+  description: Handles login, token refresh, and user management.
   title: Auth Service API
-  version: "3.0"
+  version: '3.0'
 tags:
   - name: auth
     x-displayName: auth
+  - name: users
+    x-displayName: users
+  - name: openapi_other
+    x-displayName: other
   - name: comments
     x-displayName: comments
   - name: notifications
     x-displayName: notifications
   - name: posts
     x-displayName: posts
-  - name: users
-    x-displayName: users
   - name: votes
     x-displayName: votes
 paths:
   /auth/login:
     servers:
-      - url: http://localhost:8085
+      - url: //localhost:8085
     post:
       description: >-
-        Validates credentials, issues a short-lived access token, and sets a
-        refresh token cookie
+        Validates credentials against stored user records, issues a short-lived
+        access token, and sets a refresh token cookie
       requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/main.Login"
-        description: Login credentials
-        required: true
+        $ref: '#/components/requestBodies/main.Login'
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AccessTokenResponse"
-        "400":
+                $ref: '#/components/schemas/main.AccessTokenResponse'
+        '400':
           description: missing or malformed body
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "401":
-          description: failed to create session
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
+          description: invalid credentials
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
           description: internal error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: Log in with a username and password
       tags:
         - auth
   /auth/refresh:
     servers:
-      - url: http://localhost:8085
+      - url: //localhost:8085
     post:
       description: >-
         Exchanges a valid refresh token cookie + bearer access token for a new
@@ -75,30 +72,131 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.AccessTokenResponse"
-        "401":
+                $ref: '#/components/schemas/main.AccessTokenResponse'
+        '401':
           description: not authorized / session expired
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
           description: internal error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: Refresh an access token
       tags:
         - auth
+  /users:
+    servers:
+      - url: //localhost:8085
+    post:
+      description: Creates a new user with a bcrypt-hashed password
+      requestBody:
+        $ref: '#/components/requestBodies/main.Login'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.AccessTokenResponse'
+        '400':
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+      tags:
+        - users
+  /users/{id}:
+    servers:
+      - url: //localhost:8085
+    delete:
+      requestBody:
+        $ref: '#/components/requestBodies/main.Login'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.AccessTokenResponse'
+        '400':
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+      tags:
+        - users
+    get:
+      responses: {}
+      tags:
+        - openapi_other
+    put:
+      requestBody:
+        $ref: '#/components/requestBodies/main.Login'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.AccessTokenResponse'
+        '400':
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.ErrorResponse'
+      tags:
+        - users
   /comments/{comment_id}:
     servers:
-      - url: http://localhost:8084
+      - url: //localhost:8080
     delete:
       description: Deletes a comment owned by the authenticated user
       parameters:
@@ -115,24 +213,24 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Comment deleted
-        "400":
+        '400':
           description: Comment does not exist
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "401":
+        '401':
           description: Invalid user id
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Delete a comment
@@ -148,19 +246,19 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/store.Comment"
-        "400":
+                $ref: '#/components/schemas/store.Comment'
+        '400':
           description: Comment does not exist
           content:
             application/json:
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
             application/json:
@@ -188,28 +286,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CommentUpdate"
+              $ref: '#/components/schemas/main.CommentUpdate'
         description: Updated comment payload
         required: true
       responses:
-        "200":
+        '200':
           description: Comment updated
-        "400":
+        '400':
           description: Comment does not exist or invalid body
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "401":
+        '401':
           description: Invalid user id
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Update a comment
@@ -217,7 +315,7 @@ paths:
         - comments
   /posts/{post_id}/comments:
     servers:
-      - url: http://localhost:8084
+      - url: //localhost:8080
     get:
       description: Retrieves all comments belonging to a post
       parameters:
@@ -228,21 +326,21 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/store.Comment"
+                  $ref: '#/components/schemas/store.Comment'
                 type: array
-        "400":
+        '400':
           description: Post does not exist
           content:
             application/json:
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
             application/json:
@@ -270,25 +368,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.CommentCreate"
+              $ref: '#/components/schemas/main.CommentCreate'
         description: Comment payload
         required: true
       responses:
-        "201":
+        '201':
           description: Comment created
-        "400":
+        '400':
           description: Post does not exist or invalid body
           content:
             application/json:
               schema:
                 type: string
-        "401":
+        '401':
           description: Unauthorized
           content:
             application/json:
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
             application/json:
@@ -297,9 +395,51 @@ paths:
       summary: Create a comment
       tags:
         - comments
+  /notifications/{notification_id}:
+    servers:
+      - url: //localhost:8080
+    delete:
+      description: Permanently deletes a notification owned by the authenticated user
+      parameters:
+        - description: Notification ID
+          in: path
+          name: notification_id
+          required: true
+          schema:
+            type: string
+        - description: ID of the authenticated user
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification deleted
+        '400':
+          description: Notification does not exist
+          content:
+            '*/*':
+              schema:
+                type: string
+        '401':
+          description: unauthorized
+          content:
+            '*/*':
+              schema:
+                type: string
+        '500':
+          description: Internal server error
+          content:
+            '*/*':
+              schema:
+                type: string
+      summary: Delete a notification
+      tags:
+        - notifications
   /notifications/{notification_id}/read:
     servers:
-      - url: http://localhost:8080
+      - url: //localhost:8080
     patch:
       description: Marks a single notification as read for the authenticated user
       parameters:
@@ -316,18 +456,18 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Notification marked as read
-        "401":
+        '401':
           description: unauthorized
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Mark a notification as read
@@ -335,7 +475,7 @@ paths:
         - notifications
   /notifications/read-all:
     servers:
-      - url: http://localhost:8080
+      - url: //localhost:8080
     patch:
       description: Marks every notification as read for the authenticated user
       parameters:
@@ -346,18 +486,18 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: All notifications marked as read
-        "401":
+        '401':
           description: unauthorized
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Mark all notifications as read
@@ -365,7 +505,7 @@ paths:
         - notifications
   /user/notifications:
     servers:
-      - url: http://localhost:8080
+      - url: //localhost:8080
     get:
       description: Retrieves all notifications for the authenticated user
       parameters:
@@ -376,21 +516,21 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/store.Notification"
+                  $ref: '#/components/schemas/store.Notification'
                 type: array
-        "401":
+        '401':
           description: unauthorized
           content:
             application/json:
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
             application/json:
@@ -401,24 +541,24 @@ paths:
         - notifications
   /posts:
     servers:
-      - url: http://localhost:8083
+      - url: //localhost:8081
     get:
       description: Returns every post
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/main.Post"
+                  $ref: '#/components/schemas/main.Post'
                 type: array
-        "500":
+        '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: List all posts
       tags:
         - posts
@@ -435,36 +575,36 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.PostCreate"
+              $ref: '#/components/schemas/main.PostCreate'
         description: Post body
         required: true
       responses:
-        "200":
+        '200':
           description: post created
-        "400":
+        '400':
           description: missing/malformed body
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "401":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
           description: missing user id
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: Create a post
       tags:
         - posts
   /posts/{post_id}:
     servers:
-      - url: http://localhost:8083
+      - url: //localhost:8081
     delete:
       description: Deletes a post owned by the requesting user
       parameters:
@@ -481,26 +621,26 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: post deleted
-        "400":
+        '400':
           description: missing post id
           content:
-            "*/*":
+            '*/*':
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "401":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
           description: missing user id
           content:
-            "*/*":
+            '*/*':
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
           description: Internal Server Error
           content:
-            "*/*":
+            '*/*':
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: Delete a post
       tags:
         - posts
@@ -514,18 +654,18 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.Post"
-        "500":
+                $ref: '#/components/schemas/main.Post'
+        '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: Get a single post
       tags:
         - posts
@@ -548,155 +688,36 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/main.PostUpdate"
+              $ref: '#/components/schemas/main.PostUpdate'
         description: Updated post body
         required: true
       responses:
-        "200":
+        '200':
           description: post updated
-        "400":
+        '400':
           description: missing post id or malformed body
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "401":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '401':
           description: missing user id
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/main.ErrorResponse'
+        '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/main.ErrorResponse"
+                $ref: '#/components/schemas/main.ErrorResponse'
       summary: Update a post
       tags:
         - posts
-  /users:
-    servers:
-      - url: http://localhost:8082
-    post:
-      description: Creates a new user
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/main.UserCreate"
-        description: User payload
-        required: true
-      responses:
-        "201":
-          description: User created
-        "400":
-          description: Invalid body
-          content:
-            "*/*":
-              schema:
-                type: string
-        "500":
-          description: Internal server error
-          content:
-            "*/*":
-              schema:
-                type: string
-      summary: Create a user
-      tags:
-        - users
-  /users/{id}:
-    servers:
-      - url: http://localhost:8082
-    delete:
-      description: Deletes a user by ID
-      parameters:
-        - description: User ID
-          in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: User deleted
-        "500":
-          description: Internal server error
-          content:
-            "*/*":
-              schema:
-                type: string
-      summary: Delete a user
-      tags:
-        - users
-    get:
-      description: Retrieves a single user by their ID
-      parameters:
-        - description: User ID
-          in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/main.User"
-        "401":
-          description: Invalid user id
-          content:
-            application/json:
-              schema:
-                type: string
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                type: string
-      summary: Get a user by ID
-      tags:
-        - users
-    put:
-      description: Updates an existing user's name
-      parameters:
-        - description: User ID
-          in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/main.UserCreate"
-        description: Updated user payload
-        required: true
-      responses:
-        "200":
-          description: User updated
-        "400":
-          description: Invalid body
-          content:
-            "*/*":
-              schema:
-                type: string
-        "500":
-          description: Internal server error
-          content:
-            "*/*":
-              schema:
-                type: string
-      summary: Update a user
-      tags:
-        - users
   /comments/{comment_id}/votes:
     servers:
-      - url: http://localhost:8080
+      - url: //localhost:8080
     delete:
       description: Removes the authenticated user's vote on a comment
       parameters:
@@ -713,18 +734,18 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Vote removed
-        "401":
+        '401':
           description: Invalid user id
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Remove a vote from a comment
@@ -746,26 +767,26 @@ paths:
           schema:
             type: string
       requestBody:
-        $ref: "#/components/requestBodies/main.VoteInsert"
+        $ref: '#/components/requestBodies/main.VoteInsert'
       responses:
-        "200":
+        '200':
           description: Vote recorded
-        "400":
+        '400':
           description: Invalid body
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "401":
+        '401':
           description: Invalid user id
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Vote on a comment
@@ -773,7 +794,7 @@ paths:
         - votes
   /posts/{post_id}/votes:
     servers:
-      - url: http://localhost:8080
+      - url: //localhost:8080
     delete:
       description: Removes the authenticated user's vote on a post
       parameters:
@@ -790,18 +811,18 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Vote removed
-        "401":
+        '401':
           description: Invalid user id
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Remove a vote from a post
@@ -823,26 +844,26 @@ paths:
           schema:
             type: string
       requestBody:
-        $ref: "#/components/requestBodies/main.VoteInsert"
+        $ref: '#/components/requestBodies/main.VoteInsert'
       responses:
-        "200":
+        '200':
           description: Vote recorded
-        "400":
+        '400':
           description: Invalid body
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "401":
+        '401':
           description: Post does not exist or invalid user id
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
-            "*/*":
+            '*/*':
               schema:
                 type: string
       summary: Vote on a post
@@ -850,7 +871,7 @@ paths:
         - votes
   /user/votes:
     servers:
-      - url: http://localhost:8080
+      - url: //localhost:8080
     get:
       description: Retrieves all votes cast by the authenticated user
       parameters:
@@ -861,21 +882,21 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/store.Vote"
+                  $ref: '#/components/schemas/store.Vote'
                 type: array
-        "401":
+        '401':
           description: Invalid user id
           content:
             application/json:
               schema:
                 type: string
-        "500":
+        '500':
           description: Internal server error
           content:
             application/json:
@@ -885,6 +906,21 @@ paths:
       tags:
         - votes
 components:
+  requestBodies:
+    main.Login:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/main.Login'
+      description: Login credentials
+      required: true
+    main.VoteInsert:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/main.VoteInsert'
+      description: Vote payload
+      required: true
   schemas:
     main.AccessTokenResponse:
       properties:
@@ -962,20 +998,6 @@ components:
         body:
           type: string
       type: object
-    main.User:
-      properties:
-        created_at:
-          type: string
-        id:
-          type: string
-        name:
-          type: string
-      type: object
-    main.UserCreate:
-      properties:
-        name:
-          type: string
-      type: object
     main.VoteInsert:
       properties:
         value:
@@ -992,18 +1014,12 @@ components:
         value:
           type: integer
       type: object
-  requestBodies:
-    main.VoteInsert:
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/main.VoteInsert"
-      description: Vote payload
-      required: true
 x-tagGroups:
   - name: Auth Service API
     tags:
       - auth
+      - users
+      - openapi_other
   - name: Comment Service API
     tags:
       - comments
@@ -1013,9 +1029,6 @@ x-tagGroups:
   - name: Post Service API
     tags:
       - posts
-  - name: User Service API
-    tags:
-      - users
   - name: Vote Service API
     tags:
       - votes

@@ -4,6 +4,7 @@ import "time"
 
 type Comment struct {
 	Id        string    `sql:"id"`
+	ParentId  string    `sql:"parent_id"`
 	PostId    string    `sql:"post_id"`
 	UserId    string    `sql:"user_id"`
 	Body      string    `json:"body"`

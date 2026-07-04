@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package subscribe;
+
+option go_package = "github.com/timmyjinks/proto/subscribepb";
+
+service SubscribeService {
+  // GetSubscribers returns the IDs of every user following a post.
+  rpc GetSubscribers(GetSubscribersRequest) returns (GetSubscribersResponse);
+}
+
+message GetSubscribersRequest {
+  string post_id = 1;
+}
+
+message GetSubscribersResponse {
+  repeated string user_ids = 1;
+}

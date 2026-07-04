@@ -87,6 +87,34 @@ func (app *application) MarkAllNotificationsRead(w http.ResponseWriter, r *http.
 	}
 }
 
+// DeleteNotification godoc
+// @Summary      Delete a notification
+// @Description  Permanently deletes a notification owned by the authenticated user
+// @Tags         notifications
+// @Param        notification_id  path      string  true  "Notification ID"
+// @Param        X-User-ID        header    string  true  "ID of the authenticated user"
+// @Success      200              "Notification deleted"
+// @Failure      400              {string}  string  "Notification does not exist"
+// @Failure      401              {string}  string  "unauthorized"
+// @Failure      500              {string}  string  "Internal server error"
+// @Router       /notifications/{notification_id} [delete]
+func (app *application) DeleteNotification(w http.ResponseWriter, r *http.Request) {
+	userId := r.Header.Get("X-User-ID")
+	notificationId := mux.Vars(r)["notification_id"]
+	if userId == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if notificationId == "" {
+		http.Error(w, "Notification does not exist", http.StatusBadRequest)
+		return
+	}
+	if err := app.store.Delete(notificationId, userId); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (app *application) Run(addr string) error {
 	r := mux.NewRouter()
 	server := http.Server{
@@ -97,6 +125,7 @@ func (app *application) Run(addr string) error {
 	r.HandleFunc("/user/notifications", app.ListNotifications).Methods("GET")
 	r.HandleFunc("/notifications/{notification_id}/read", app.MarkNotificationRead).Methods("PATCH")
 	r.HandleFunc("/notifications/read-all", app.MarkAllNotificationsRead).Methods("PATCH")
+	r.HandleFunc("/notifications/{notification_id}", app.DeleteNotification).Methods("DELETE")
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()

@@ -45,6 +45,9 @@ func (s *PostgresStore) Create(f UserCreate) error {
 
 func (s *PostgresStore) Update(f UserUpdate) error {
 	_, err := s.db.Exec("UPDATE users SET name = $1 where id = $2", f.Name, f.Id)
+	if err != nil {
+		return err
+	}
 	return err
 }
 

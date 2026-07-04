@@ -16,10 +16,11 @@ func NewPostgresStorage() (*sql.DB, error) {
 	if _, err := db.Exec(`
     CREATE TABLE IF NOT EXISTS comments (
         id         uuid PRIMARY KEY default gen_random_uuid(),
+				parent_id  uuid DEFAULT '00000000-0000-0000-0000-000000000000'::uuid, 
         post_id    uuid NOT NULL, 
         user_id    uuid NOT NULL,
 				body TEXT DEFAULT '{}',
-        UNIQUE(post_id, user_id)
+				created_at TIMESTAMP DEFAULT now()
     )
 `); err != nil {
 		log.Fatal("Failed to create table:", err)

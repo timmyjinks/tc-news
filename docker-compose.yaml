@@ -1,19 +1,13 @@
 services:
-  # gateway:
-  #   build:
-  #     context: ./gateway
-  #     dockerfile: ./cmd/Dockerfile
-  #   networks:
-  #     - tc-news
-  #   ports:
-  #     - "8080:80"
-
   subscription:
     build:
       context: ./subscribe
       dockerfile: ./cmd/Dockerfile
     ports:
       - "8081:8080"
+      - "9090:9090"
+    environment:
+      GRPC_ADDR: ":9090"
     networks:
       - tc-news
     depends_on:
@@ -23,6 +17,52 @@ services:
     image: "postgres:16"
     ports:
       - "5432:5432"
+    networks:
+      - tc-news
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+  comment:
+    build:
+      context: ./comment
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8084:8080"
+    networks:
+      - tc-news
+    depends_on:
+      comment-db:
+        condition: service_started
+      kafka-service:
+        condition: service_started
+  comment-db:
+    networks:
+      - tc-news
+    image: "postgres:16"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+  notification:
+    build:
+      context: ./notification
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8086:8080"
+    networks:
+      - tc-news
+    environment:
+      SUBSCRIBE_GRPC_ADDR: "subscription:9090"
+    depends_on:
+      notification-db:
+        condition: service_started
+      kafka-service:
+        condition: service_started
+      subscription:
+        condition: service_started
+  notification-db:
+    image: "postgres:16"
     networks:
       - tc-news
     environment:
@@ -52,25 +92,6 @@ services:
     image: "postgres:16"
     networks:
       - tc-news
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-
-  comment:
-    build:
-      context: ./comment
-      dockerfile: ./cmd/Dockerfile
-    ports:
-      - "8084:8080"
-    networks:
-      - tc-news
-    depends_on:
-      comment-db:
-        condition: service_started
-  comment-db:
-    networks:
-      - tc-news
-    image: "postgres:16"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password

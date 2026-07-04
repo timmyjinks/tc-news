@@ -1,17 +1,17 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Handles login and token refresh for the auth service.",
+        "description": "Handles login, token refresh, and user management.",
         "title": "Auth Service API",
         "contact": {},
         "version": "3.0"
     },
-    "host": "localhost:8080",
+    "host": "localhost:8085",
     "basePath": "/",
     "paths": {
         "/auth/login": {
             "post": {
-                "description": "Validates credentials, issues a short-lived access token, and sets a refresh token cookie",
+                "description": "Validates credentials against stored user records, issues a short-lived access token, and sets a refresh token cookie",
                 "consumes": [
                     "application/json"
                 ],
@@ -47,7 +47,7 @@
                         }
                     },
                     "401": {
-                        "description": "failed to create session",
+                        "description": "invalid credentials",
                         "schema": {
                             "$ref": "#/definitions/main.ErrorResponse"
                         }
@@ -89,6 +89,158 @@
                     },
                     "401": {
                         "description": "not authorized / session expired",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "post": {
+                "description": "Creates a new user with a bcrypt-hashed password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "login",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.Login"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.AccessTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "missing or malformed body",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "get": {
+                "responses": {}
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "login",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.Login"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.AccessTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "missing or malformed body",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "internal error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "login",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.Login"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.AccessTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "missing or malformed body",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid credentials",
                         "schema": {
                             "$ref": "#/definitions/main.ErrorResponse"
                         }

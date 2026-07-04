@@ -17,10 +17,10 @@ definitions:
       password:
         type: string
     type: object
-host: localhost:8080
+host: localhost:8085
 info:
   contact: {}
-  description: Handles login and token refresh for the auth service.
+  description: Handles login, token refresh, and user management.
   title: Auth Service API
   version: "3.0"
 paths:
@@ -28,8 +28,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Validates credentials, issues a short-lived access token, and sets
-        a refresh token cookie
+      description: Validates credentials against stored user records, issues a short-lived
+        access token, and sets a refresh token cookie
       parameters:
       - description: Login credentials
         in: body
@@ -49,7 +49,7 @@ paths:
           schema:
             $ref: '#/definitions/main.ErrorResponse'
         "401":
-          description: failed to create session
+          description: invalid credentials
           schema:
             $ref: '#/definitions/main.ErrorResponse'
         "500":
@@ -87,4 +87,102 @@ paths:
       summary: Refresh an access token
       tags:
       - auth
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user with a bcrypt-hashed password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/main.Login'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AccessTokenResponse'
+        "400":
+          description: missing or malformed body
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: invalid credentials
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: internal error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/main.Login'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AccessTokenResponse'
+        "400":
+          description: missing or malformed body
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: invalid credentials
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: internal error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      tags:
+      - users
+    get:
+      responses: {}
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/main.Login'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.AccessTokenResponse'
+        "400":
+          description: missing or malformed body
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: invalid credentials
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: internal error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      tags:
+      - users
 swagger: "2.0"

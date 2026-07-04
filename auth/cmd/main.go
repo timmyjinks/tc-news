@@ -10,7 +10,7 @@ import (
 // @title           Auth Service API
 // @version         3.0
 // @description     Handles login, token refresh, and user management.
-// @host            localhost:8080
+// @host            localhost:8085
 // @BasePath        /
 
 func main() {

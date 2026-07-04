@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/auth/login": {
             "post": {
-                "description": "Validates credentials, issues a short-lived access token, and sets a refresh token cookie",
+                "description": "Validates credentials against stored user records, issues a short-lived access token, and sets a refresh token cookie",
                 "consumes": [
                     "application/json"
                 ],
@@ -53,7 +53,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "failed to create session",
+                        "description": "invalid credentials",
                         "schema": {
                             "$ref": "#/definitions/main.ErrorResponse"
                         }
@@ -295,11 +295,11 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "3.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:8085",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Auth Service API",
-	Description:      "Handles login and token refresh for the auth service.",
+	Description:      "Handles login, token refresh, and user management.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

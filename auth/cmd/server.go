@@ -87,8 +87,7 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := app.userStore.GetByName(login.Name)
 	if err != nil {
-		// Same response whether the user doesn't exist or the DB errored,
-		// so we don't leak which usernames are registered.
+		fmt.Println(err)
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -122,8 +121,16 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(AccessTokenResponse{AccessToken: accessToken})
 }
 
-// Refresh stays unchanged from before — it re-issues tokens from the
-// refresh-token session, it doesn't touch the users table.
+// Refresh godoc
+// @Summary      Refresh an access token
+// @Description  Exchanges a valid refresh token cookie + bearer access token for a new access/refresh token pair
+// @Tags         auth
+// @Produce      json
+// @Param        Authorization  header    string  true  "Bearer access token"
+// @Success      200            {object}  AccessTokenResponse
+// @Failure      401            {object}  ErrorResponse  "not authorized / session expired"
+// @Failure      500            {object}  ErrorResponse  "internal error"
+// @Router       /auth/refresh [post]
 func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 	bearer := r.Header.Get("Authorization")
 	refreshTokenCookie, err := r.Cookie("refresh_token")
@@ -216,6 +223,14 @@ func (app *application) GetUser(w http.ResponseWriter, r *http.Request) {
 
 // CreateUser godoc
 // @Description  Creates a new user with a bcrypt-hashed password
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        login  body      Login  true  "Login credentials"
+// @Success      200    {object}  AccessTokenResponse
+// @Failure      400    {object}  ErrorResponse  "missing or malformed body"
+// @Failure      401    {object}  ErrorResponse  "invalid credentials"
+// @Failure      500    {object}  ErrorResponse  "internal error"
 // @Router       /users [post]
 func (app *application) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var user UserCreate
@@ -245,6 +260,14 @@ func (app *application) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUser godoc
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        login  body      Login  true  "Login credentials"
+// @Success      200    {object}  AccessTokenResponse
+// @Failure      400    {object}  ErrorResponse  "missing or malformed body"
+// @Failure      401    {object}  ErrorResponse  "invalid credentials"
+// @Failure      500    {object}  ErrorResponse  "internal error"
 // @Router       /users/{id} [put]
 func (app *application) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userId := mux.Vars(r)["id"]
@@ -263,6 +286,14 @@ func (app *application) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteUser godoc
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        login  body      Login  true  "Login credentials"
+// @Success      200    {object}  AccessTokenResponse
+// @Failure      400    {object}  ErrorResponse  "missing or malformed body"
+// @Failure      401    {object}  ErrorResponse  "invalid credentials"
+// @Failure      500    {object}  ErrorResponse  "internal error"
 // @Router       /users/{id} [delete]
 func (app *application) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userId := mux.Vars(r)["id"]

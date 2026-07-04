@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/timmyjinks/comment/database"
+	"github.com/timmyjinks/comment/kafka"
 	"github.com/timmyjinks/comment/store"
 )
 
@@ -22,9 +23,11 @@ func main() {
 	}
 
 	store := store.NewPostgreStore(db)
+	queue := kafka.NewKafkaService("notifications")
 
 	app := application{
-		store: store,
+		store:    store,
+		producer: queue,
 	}
 
 	app.Run(config.addr)

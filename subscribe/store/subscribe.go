@@ -1,5 +1,24 @@
 package store
 
+func (s *PostgreStore) GetByPost(postId string) ([]Subscriber, error) {
+	rows, err := s.db.Query("SELECT * from subscribers where post_id = $1", postId)
+	if err != nil {
+		return []Subscriber{}, err
+	}
+	defer rows.Close()
+
+	var subs []Subscriber
+	for rows.Next() {
+		var sub Subscriber
+		if err := rows.Scan(&sub.Id, &sub.PostId, &sub.UserId); err != nil {
+			return []Subscriber{}, err
+		}
+		subs = append(subs, sub)
+	}
+
+	return subs, nil
+}
+
 func (s *PostgreStore) Get(userId string) ([]Subscriber, error) {
 	rows, err := s.db.Query("SELECT * from subscribers where user_id = $1", userId)
 	if err != nil {
@@ -10,7 +29,7 @@ func (s *PostgreStore) Get(userId string) ([]Subscriber, error) {
 	var follows []Subscriber
 	for rows.Next() {
 		var follow Subscriber
-		err := rows.Scan(&follow)
+		err := rows.Scan(&follow.Id, &follow.PostId, &follow.UserId)
 		if err != nil {
 			return []Subscriber{}, err
 		}

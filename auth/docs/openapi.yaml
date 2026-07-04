@@ -1,21 +1,16 @@
 openapi: 3.0.0
 info:
   contact: {}
-  description: Handles login and token refresh for the auth service.
+  description: Handles login, token refresh, and user management.
   title: Auth Service API
   version: "3.0"
 paths:
   /auth/login:
     post:
-      description: Validates credentials, issues a short-lived access token, and sets
-        a refresh token cookie
+      description: Validates credentials against stored user records, issues a
+        short-lived access token, and sets a refresh token cookie
       requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/main.Login"
-        description: Login credentials
-        required: true
+        $ref: "#/components/requestBodies/main.Login"
       responses:
         "200":
           description: OK
@@ -30,7 +25,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/main.ErrorResponse"
         "401":
-          description: failed to create session
+          description: invalid credentials
           content:
             application/json:
               schema:
@@ -77,9 +72,112 @@ paths:
       summary: Refresh an access token
       tags:
         - auth
+  /users:
+    post:
+      description: Creates a new user with a bcrypt-hashed password
+      requestBody:
+        $ref: "#/components/requestBodies/main.Login"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AccessTokenResponse"
+        "400":
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      tags:
+        - users
+  "/users/{id}":
+    delete:
+      requestBody:
+        $ref: "#/components/requestBodies/main.Login"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AccessTokenResponse"
+        "400":
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      tags:
+        - users
+    get:
+      responses: {}
+    put:
+      requestBody:
+        $ref: "#/components/requestBodies/main.Login"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.AccessTokenResponse"
+        "400":
+          description: missing or malformed body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "401":
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+        "500":
+          description: internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/main.ErrorResponse"
+      tags:
+        - users
 servers:
-  - url: //localhost:8080
+  - url: //localhost:8085
 components:
+  requestBodies:
+    main.Login:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/main.Login"
+      description: Login credentials
+      required: true
   schemas:
     main.AccessTokenResponse:
       properties:

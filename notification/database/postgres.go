@@ -14,11 +14,11 @@ func NewPostgresStorage() (*sql.DB, error) {
 	}
 
 	if _, err := db.Exec(`
-    CREATE TABLE IF NOT EXISTS notifications(
-        id         SERIAL PRIMARY KEY,
-        user_id    INT NOT NULL,
-				body 			 TEXT, 
-				read       BOOLEAN NOT NULL DEFAULT false
+    CREATE TABLE IF NOT EXISTS notifications (
+        id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    uuid NOT NULL,
+        body       TEXT DEFAULT '',
+        read       BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
 `); err != nil {
