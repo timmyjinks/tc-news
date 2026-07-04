@@ -8,6 +8,7 @@ type Vote struct {
 }
 
 type VoteInsert struct {
+	Id        string `json:"id"`
 	PostId    string `json:"post_id"`
 	CommentId string `json:"comment_id"`
 	UserId    string `json:"user_id"`

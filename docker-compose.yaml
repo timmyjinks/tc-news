@@ -69,13 +69,24 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
 
-  # vote:
-  #   build:
-  #     context: ./vote
-  #     dockerfile: ./cmd/Dockerfile
-  # vote-db:
-  #   image: "postgres:16"
-  #
+  vote:
+    build:
+      context: ./vote
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8082:8080"
+    networks:
+      - tc-news
+    depends_on:
+      vote-db:
+        condition: service_started
+  vote-db:
+    image: "postgres:16"
+    networks:
+      - tc-news
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
 
   post:
     build:

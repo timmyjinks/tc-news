@@ -139,7 +139,7 @@ func (app *application) DeletePostVote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user id", http.StatusUnauthorized)
 		return
 	}
-	err := app.store.DeleteComment(postId, userId)
+	err := app.store.DeletePost(postId, userId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

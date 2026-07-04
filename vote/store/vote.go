@@ -9,7 +9,7 @@ func (s *PostgreStore) Get(userId string) error {
 }
 
 func (s *PostgreStore) InsertPost(f VoteInsert) error {
-	_, err := s.db.Exec("INSERT INTO votes(post_id, user_id, value) VALUES ($1, $2, $3 ON CONFLICT (user_id, post_id) DO UPDATE SET value = EXCLUDED.value", f.PostId, f.UserId)
+	_, err := s.db.Exec("INSERT INTO votes(post_id, user_id, value) VALUES ($1, $2, $3) ON CONFLICT (user_id, post_id) DO UPDATE SET value = EXCLUDED.value", f.PostId, f.UserId, f.Value)
 	if err != nil {
 		return err
 	}
@@ -17,7 +17,7 @@ func (s *PostgreStore) InsertPost(f VoteInsert) error {
 }
 
 func (s *PostgreStore) InsertComment(f VoteInsert) error {
-	_, err := s.db.Exec("INSERT INTO votes(comment_id, user_id, value) VALUES ($1, $2, $3 ON CONFLICT (user_id, comment_id) DO UPDATE SET value = EXCLUDED.value", f.CommentId, f.UserId, f.Value)
+	_, err := s.db.Exec("INSERT INTO votes(comment_id, user_id, value) VALUES ($1, $2, $3) ON CONFLICT (user_id, comment_id) DO UPDATE SET value = EXCLUDED.value", f.UserId, f.CommentId, f.Value)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (s *PostgreStore) DeletePost(postId, userId string) error {
 }
 
 func (s *PostgreStore) DeleteComment(commentId, userId string) error {
-	_, err := s.db.Exec("DELETE votes where comment_id = $1 and user_id = $2", commentId, userId)
+	_, err := s.db.Exec("DELETE FROM votes where comment_id = $1 and user_id = $2", commentId, userId)
 	if err != nil {
 		return err
 	}

@@ -48,7 +48,7 @@ func (s *PostgreStore) Create(f SubscriberCreate) error {
 }
 
 func (s *PostgreStore) Delete(postId, userId string) error {
-	_, err := s.db.Exec("DELETE subscribers where post_id = $1 and user_id = $2", postId, userId)
+	_, err := s.db.Exec("DELETE from subscribers where post_id = $1 and user_id = $2", postId, userId)
 	if err != nil {
 		return err
 	}
