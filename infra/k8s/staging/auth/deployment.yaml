@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: post
+  name: post
+  namespace: tc-news
+spec:
+  selector:
+    matchLabels:
+      app: post
+  template:
+    metadata:
+      labels:
+        app: post
+    spec:
+      hostname: post
+      containers:
+        - name: post
+          image: timmijinks/post
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "50m"
+          ports:
+            - containerPort: 8080
