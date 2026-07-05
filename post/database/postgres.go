@@ -16,8 +16,10 @@ func NewPostgresStorage() (*sql.DB, error) {
 	if _, err := db.Exec(`
     CREATE TABLE IF NOT EXISTS posts (
         id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id    uuid NOT NULL,
+        author_id  uuid NOT NULL,
+				title TEXT DEFAULT '',
 				body TEXT DEFAULT '{}',
+				tags TEXT[] NOT NULL DEFAULT '{}',
 				created_at TIMESTAMP DEFAULT now()
     )
 `); err != nil {

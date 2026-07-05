@@ -1,18 +1,49 @@
 package store
 
+import (
+	"fmt"
+
+	"github.com/lib/pq"
+)
+
+const postColumns = "id, author_id, title, body, tags, created_at"
+
 func (s *PostgreStore) GetById(id string) (Post, error) {
-	row := s.db.QueryRow("SELECT * from posts where id = $1", id)
+	row := s.db.QueryRow("SELECT "+postColumns+" from posts where id = $1", id)
 
 	var post Post
-	err := row.Scan(&post.Id, &post.UserId, &post.Body, &post.CreatedAt)
+	err := row.Scan(&post.Id, &post.AuthorId, &post.Title, &post.Body, pq.Array(&post.Tags), &post.CreatedAt)
 	if err != nil {
 		return Post{}, err
 	}
 	return post, nil
 }
 
-func (s *PostgreStore) Get() ([]Post, error) {
-	rows, err := s.db.Query("SELECT * from posts")
+func (s *PostgreStore) Get(params ListPostsParams) ([]Post, error) {
+	query := "SELECT " + postColumns + " FROM posts"
+	args := []interface{}{}
+
+	if params.Tag != "" {
+		args = append(args, params.Tag)
+		query += fmt.Sprintf(" WHERE $%d = ANY(tags)", len(args))
+	}
+
+	order := "DESC"
+	if params.Sort == "oldest" {
+		order = "ASC"
+	}
+	query += " ORDER BY created_at " + order
+
+	if params.Limit > 0 {
+		args = append(args, params.Limit)
+		query += fmt.Sprintf(" LIMIT $%d", len(args))
+	}
+	if params.Offset > 0 {
+		args = append(args, params.Offset)
+		query += fmt.Sprintf(" OFFSET $%d", len(args))
+	}
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return []Post{}, err
 	}
@@ -21,7 +52,7 @@ func (s *PostgreStore) Get() ([]Post, error) {
 	var posts []Post
 	for rows.Next() {
 		var post Post
-		err := rows.Scan(&post.Id, &post.UserId, &post.Body, &post.CreatedAt)
+		err := rows.Scan(&post.Id, &post.AuthorId, &post.Title, &post.Body, pq.Array(&post.Tags), &post.CreatedAt)
 		if err != nil {
 			return []Post{}, err
 		}
@@ -32,7 +63,10 @@ func (s *PostgreStore) Get() ([]Post, error) {
 }
 
 func (s *PostgreStore) Create(f PostCreate) error {
-	_, err := s.db.Exec("INSERT INTO posts (user_id, body) VALUES ($1, $2)", f.UserId, f.Body)
+	_, err := s.db.Exec(
+		"INSERT INTO posts (author_id, title, body, tags) VALUES ($1, $2, $3, $4)",
+		f.AuthorId, f.Title, f.Body, pq.Array(f.Tags),
+	)
 	if err != nil {
 		return err
 	}
@@ -40,15 +74,18 @@ func (s *PostgreStore) Create(f PostCreate) error {
 }
 
 func (s *PostgreStore) Update(f PostUpdate) error {
-	_, err := s.db.Exec("Update posts SET body = $1 where id = $2 and user_id = $3", f.Body, f.PostId, f.UserId)
+	_, err := s.db.Exec(
+		"UPDATE posts SET title = $1, body = $2, tags = $3 where id = $4 and author_id = $5",
+		f.Title, f.Body, pq.Array(f.Tags), f.PostId, f.AuthorId,
+	)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *PostgreStore) Delete(postId, userId string) error {
-	_, err := s.db.Exec("DELETE from posts where id = $1 and user_id = $2", postId, userId)
+func (s *PostgreStore) Delete(postId, authorId string) error {
+	_, err := s.db.Exec("DELETE from posts where id = $1 and author_id = $2", postId, authorId)
 	if err != nil {
 		return err
 	}

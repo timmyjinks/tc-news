@@ -4,18 +4,31 @@ import "time"
 
 type Post struct {
 	Id        string    `json:"id"`
-	UserId    string    `json:"user_id"`
+	AuthorId  string    `json:"author_id"`
+	Title     string    `json:"title"`
 	Body      string    `json:"body"`
+	Tags      []string  `json:"tags"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type PostCreate struct {
-	UserId string
-	Body   string
+	AuthorId string
+	Title    string
+	Body     string
+	Tags     []string
 }
 
 type PostUpdate struct {
-	PostId string
-	UserId string
-	Body   string
+	PostId   string
+	AuthorId string
+	Title    string
+	Body     string
+	Tags     []string
+}
+
+type ListPostsParams struct {
+	Limit  int
+	Offset int
+	Tag    string
+	Sort   string
 }

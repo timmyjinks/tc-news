@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,17 +17,23 @@ type application struct {
 
 type Post struct {
 	Id        string    `json:"id"`
-	UserId    string    `json:"user_id"`
+	AuthorId  string    `json:"author_id"`
+	Title     string    `json:"title"`
 	Body      string    `json:"body"`
+	Tags      []string  `json:"tags"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type PostCreate struct {
-	Body string `json:"body"`
+	Title string   `json:"title"`
+	Body  string   `json:"body"`
+	Tags  []string `json:"tags"`
 }
 
 type PostUpdate struct {
-	Body string `json:"body"`
+	Title string   `json:"title"`
+	Body  string   `json:"body"`
+	Tags  []string `json:"tags"`
 }
 
 // ErrorResponse is a generic error payload.
@@ -54,14 +61,55 @@ func (app *application) Run(addr string) error {
 
 // ListPosts godoc
 // @Summary      List all posts
-// @Description  Returns every post
+// @Description  Returns posts, optionally paginated, filtered by tag, and sorted by creation date
 // @Tags         posts
 // @Produce      json
+// @Param        limit   query     int     false  "Max number of posts to return"
+// @Param        offset  query     int     false  "Number of posts to skip"
+// @Param        tag     query     string  false  "Only return posts that have this tag"
+// @Param        sort    query     string  false  "Sort order by creation date: newest (default) or oldest"
 // @Success      200  {array}   Post
+// @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /posts [get]
 func (app *application) ListPosts(w http.ResponseWriter, r *http.Request) {
-	posts, err := app.store.Get()
+	q := r.URL.Query()
+
+	limit := 0
+	if v := q.Get("limit"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil || parsed < 0 {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+
+	offset := 0
+	if v := q.Get("offset"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil || parsed < 0 {
+			http.Error(w, "invalid offset", http.StatusBadRequest)
+			return
+		}
+		offset = parsed
+	}
+
+	sort := q.Get("sort")
+	if sort == "" {
+		sort = "newest"
+	}
+	if sort != "newest" && sort != "oldest" {
+		http.Error(w, "invalid sort: must be 'newest' or 'oldest'", http.StatusBadRequest)
+		return
+	}
+
+	posts, err := app.store.Get(store.ListPostsParams{
+		Limit:  limit,
+		Offset: offset,
+		Tag:    q.Get("tag"),
+		Sort:   sort,
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -101,15 +149,15 @@ func (app *application) GetPost(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        X-User-ID  header  string      true  "Requesting user's ID"
-// @Param        post       body    PostCreate  true  "Post body"
+// @Param        post       body    PostCreate  true  "Post title, body, and tags"
 // @Success      200        "post created"
 // @Failure      400        {object}  ErrorResponse  "missing/malformed body"
 // @Failure      401        {object}  ErrorResponse  "missing user id"
 // @Failure      500        {object}  ErrorResponse
 // @Router       /posts [post]
 func (app *application) CreatePost(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
-	if userId == "" {
+	authorId := r.Header.Get("X-User-ID")
+	if authorId == "" {
 		http.Error(w, "Invalid user id", http.StatusUnauthorized)
 		return
 	}
@@ -122,8 +170,10 @@ func (app *application) CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := app.store.Create(store.PostCreate{
-		UserId: userId,
-		Body:   post.Body,
+		AuthorId: authorId,
+		Title:    post.Title,
+		Body:     post.Body,
+		Tags:     post.Tags,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,22 +182,22 @@ func (app *application) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePost godoc
 // @Summary      Update a post
-// @Description  Updates an existing post's body
+// @Description  Updates an existing post's title, body, and tags
 // @Tags         posts
 // @Accept       json
 // @Produce      json
 // @Param        X-User-ID  header  string      true  "Requesting user's ID"
 // @Param        post_id    path    string      true  "Post ID"
-// @Param        post       body    PostUpdate  true  "Updated post body"
+// @Param        post       body    PostUpdate  true  "Updated title, body, and tags"
 // @Success      200        "post updated"
 // @Failure      400        {object}  ErrorResponse  "missing post id or malformed body"
 // @Failure      401        {object}  ErrorResponse  "missing user id"
 // @Failure      500        {object}  ErrorResponse
 // @Router       /posts/{post_id} [put]
 func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
+	authorId := r.Header.Get("X-User-ID")
 	postId := mux.Vars(r)["post_id"]
-	if userId == "" {
+	if authorId == "" {
 		http.Error(w, "Invalid user id", http.StatusUnauthorized)
 		return
 	}
@@ -164,9 +214,11 @@ func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := app.store.Update(store.PostUpdate{
-		PostId: postId,
-		UserId: userId,
-		Body:   post.Body,
+		PostId:   postId,
+		AuthorId: authorId,
+		Title:    post.Title,
+		Body:     post.Body,
+		Tags:     post.Tags,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -185,10 +237,10 @@ func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
 // @Failure      500        {object}  ErrorResponse
 // @Router       /posts/{post_id} [delete]
 func (app *application) DeletePost(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
+	authorId := r.Header.Get("X-User-ID")
 	postId := mux.Vars(r)["post_id"]
 
-	if userId == "" {
+	if authorId == "" {
 		http.Error(w, "Invalid user id", http.StatusUnauthorized)
 		return
 	}
@@ -197,7 +249,7 @@ func (app *application) DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := app.store.Delete(postId, userId); err != nil {
+	if err := app.store.Delete(postId, authorId); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
