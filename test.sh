@@ -4,9 +4,9 @@
 # ============================================================================
 # Walks the full user journey back-to-back:
 #   register user A -> user A posts -> register user B -> user B posts ->
-#   user B comments on A's post -> user A replies -> votes -> user A
-#   subscribes to B's post -> B comments again -> notification fires for A
-#   -> mark/read/delete notifications -> cleanup
+#   list/paginate/filter/sort posts -> user B comments on A's post -> user A
+#   replies -> votes -> user A subscribes to B's post -> B comments again ->
+#   notification fires for A -> mark/read/delete notifications -> cleanup
 #
 # Requires: bash, curl, jq, (uuidgen or python3)
 #
@@ -31,7 +31,9 @@
 #     no `json:` tags on their Id/PostId/UserId/etc. fields, so the *real*
 #     JSON keys are PascalCase ("Id", "PostId", "UserId", ...) even though
 #     swagger.yaml/openapi.yaml document lowercase names. This script uses
-#     the real casing.
+#     the real casing. (store.Post does have json tags -- id/author_id/
+#     title/body/tags/created_at -- so posts are the one resource that
+#     matches its docs.)
 # ----------------------------------------------------------------------------
 
 set -uo pipefail
@@ -64,6 +66,19 @@ check() {
     PASS_COUNT=$((PASS_COUNT+1))
   else
     echo "  FAIL $desc (expected $expected, got $actual)"
+    echo "       body: $(cat "$BODY_FILE" 2>/dev/null | head -c 300)"
+    FAIL_COUNT=$((FAIL_COUNT+1))
+  fi
+}
+
+check_true() {
+  # check_true "description" boolean_result(0/1 via string "true"/"false")
+  local desc=$1 ok=$2
+  if [[ "$ok" == "true" ]]; then
+    echo "  OK   $desc"
+    PASS_COUNT=$((PASS_COUNT+1))
+  else
+    echo "  FAIL $desc"
     echo "       body: $(cat "$BODY_FILE" 2>/dev/null | head -c 300)"
     FAIL_COUNT=$((FAIL_COUNT+1))
   fi
@@ -144,11 +159,16 @@ step "2. POST: user A creates a post, user B creates a post"
 # ============================================================================
 NONCE_POST_A="post-A-marker-$NONCE"
 NONCE_POST_B="post-B-marker-$NONCE"
+TAG_SHARED="smoke-test-$NONCE"   # both posts share this tag
+TAG_A_ONLY="kafka-$NONCE"        # only post A has this tag
 
-code=$(req POST "$POST/posts" "{\"body\":\"$NONCE_POST_A\"}" "X-User-ID: $USER_A_ID")
+code=$(req POST "$POST/posts" "{\"title\":\"Post A\",\"body\":\"$NONCE_POST_A\",\"tags\":[\"$TAG_SHARED\",\"$TAG_A_ONLY\"]}" "X-User-ID: $USER_A_ID")
 check "user A creates a post" 200 "$code"
 
-code=$(req POST "$POST/posts" "{\"body\":\"$NONCE_POST_B\"}" "X-User-ID: $USER_B_ID")
+# small gap so created_at ordering between A and B is unambiguous
+sleep 1
+
+code=$(req POST "$POST/posts" "{\"title\":\"Post B\",\"body\":\"$NONCE_POST_B\",\"tags\":[\"$TAG_SHARED\"]}" "X-User-ID: $USER_B_ID")
 check "user B creates a post" 200 "$code"
 
 code=$(req GET "$POST/posts")
@@ -169,6 +189,46 @@ fi
 
 code=$(req GET "$POST/posts/$POST_A_ID")
 check "get post A by id" 200 "$code"
+title_ok=$(jq -r '(.title == "Post A") and (.author_id == "'"$USER_A_ID"'")' "$BODY_FILE" 2>/dev/null)
+check_true "post A has title + author_id set correctly" "${title_ok:-false}"
+
+# ----------------------------------------------------------------------------
+step "2b. POST: pagination, tag filter, and sort query params on GET /posts"
+# ----------------------------------------------------------------------------
+code=$(req GET "$POST/posts?tag=$TAG_A_ONLY")
+check "filter posts by a tag only post A has" 200 "$code"
+tag_filter_ok=$(jq -r --arg pid "$POST_A_ID" --arg bid "$POST_B_ID" \
+  '[(. // [])[].id] as $ids | ($ids | index($pid)) != null and (($ids | index($bid)) == null)' \
+  "$BODY_FILE" 2>/dev/null)
+check_true "tag filter returns post A but not post B" "${tag_filter_ok:-false}"
+
+code=$(req GET "$POST/posts?tag=$TAG_SHARED")
+check "filter posts by the shared tag" 200 "$code"
+shared_tag_ok=$(jq -r --arg pid "$POST_A_ID" --arg bid "$POST_B_ID" \
+  '[(. // [])[].id] as $ids | ($ids | index($pid)) != null and ($ids | index($bid)) != null' \
+  "$BODY_FILE" 2>/dev/null)
+check_true "shared tag filter returns both post A and post B" "${shared_tag_ok:-false}"
+
+code=$(req GET "$POST/posts?limit=1&sort=oldest")
+check "paginate: limit=1&sort=oldest" 200 "$code"
+oldest_ok=$(jq -r --arg pid "$POST_A_ID" '((. // []) | length) == 1 and (.[0].id == $pid)' "$BODY_FILE" 2>/dev/null)
+check_true "oldest-first, limit 1 returns post A" "${oldest_ok:-false}"
+
+code=$(req GET "$POST/posts?limit=1&sort=newest")
+check "paginate: limit=1&sort=newest" 200 "$code"
+newest_ok=$(jq -r --arg bid "$POST_B_ID" '((. // []) | length) == 1 and (.[0].id == $bid)' "$BODY_FILE" 2>/dev/null)
+check_true "newest-first, limit 1 returns post B" "${newest_ok:-false}"
+
+code=$(req GET "$POST/posts?limit=1&offset=1&sort=oldest")
+check "paginate: limit=1&offset=1&sort=oldest" 200 "$code"
+offset_ok=$(jq -r --arg bid "$POST_B_ID" '((. // []) | length) == 1 and (.[0].id == $bid)' "$BODY_FILE" 2>/dev/null)
+check_true "oldest-first, offset 1 skips post A and returns post B" "${offset_ok:-false}"
+
+code=$(req GET "$POST/posts?limit=abc")
+check "invalid limit is rejected" 400 "$code"
+
+code=$(req GET "$POST/posts?sort=sideways")
+check "invalid sort value is rejected" 400 "$code"
 
 # ============================================================================
 step "3. COMMENT: user B comments on A's post, user A replies"
