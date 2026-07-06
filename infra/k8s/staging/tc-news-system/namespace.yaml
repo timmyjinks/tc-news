@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: tc-news-system
-  labels:
-    managed-by: tc-news
