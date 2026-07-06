@@ -1,0 +1,35 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tc-news-gateway
+  namespace: tc-news-system
+  annotations:
+    cert-manager.io/issuer: tc-news-issuer
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http-wildcard
+      port: 80
+      protocol: HTTP
+      hostname: "*.home-system.tysonjenkins.dev"
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              managed-by: home
+    - name: https-wildcard
+      port: 443
+      hostname: "*.home-system.tysonjenkins.dev"
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              managed-by: home
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: gateway-tls-secret
+            kind: Secret

@@ -1,0 +1,60 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tysoncloud-gateway
+  namespace: tc-system
+  annotations:
+    cert-manager.io/issuer: tysoncloud-issuer
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http-wildcard
+      port: 80
+      protocol: HTTP
+      hostname: "*.tysoncloud.tysonjenkins.dev"
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              managed-by: tysoncloud
+    - name: https-wildcard
+      port: 443
+      hostname: "*.tysoncloud.tysonjenkins.dev"
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              managed-by: tysoncloud
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: gateway-tls-secret
+            kind: Secret
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "tc.tysonjenkins.dev"
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              managed-by: tysoncloud
+    - name: https
+      port: 443
+      hostname: "tc.tysonjenkins.dev"
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              managed-by: tysoncloud
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: gateway-tls-secret
+            kind: Secret

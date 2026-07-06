@@ -1,0 +1,50 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-bootstrap
+  namespace: tc-news-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca-tc-news
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: internal-ca-tc-news
+  secretName: internal-ca-tc-news-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-bootstrap
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: internal-ca-issuer
+  namespace: tc-news-system
+spec:
+  ca:
+    secretName: internal-ca-secret
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gateway-tls
+  namespace: tc-news-system
+spec:
+  secretName: gateway-tls-secret
+  issuerRef:
+    name: internal-ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.home.tysonjenkins.dev"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  duration: 8760h
+  renewBefore: 720h
