@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/timmyjinks/comment/database"
 	"github.com/timmyjinks/comment/kafka"
@@ -26,8 +28,10 @@ func main() {
 	queue := kafka.NewKafkaService("notifications")
 
 	app := application{
-		store:    store,
-		producer: queue,
+		store:           store,
+		producer:        queue,
+		postServiceAddr: config.postServiceAddr,
+		httpClient:      &http.Client{Timeout: 5 * time.Second},
 	}
 
 	app.Run(config.addr)

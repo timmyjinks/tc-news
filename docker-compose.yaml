@@ -36,6 +36,8 @@ services:
         condition: service_started
       kafka-service:
         condition: service_started
+      post:
+        condition: service_started
   comment-db:
     networks:
       - tc-news

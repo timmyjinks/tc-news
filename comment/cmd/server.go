@@ -12,8 +12,10 @@ import (
 )
 
 type application struct {
-	store    *store.PostgreStore
-	producer *kafka.KafkaService
+	store           *store.PostgreStore
+	producer        *kafka.KafkaService
+	postServiceAddr string
+	httpClient      *http.Client
 }
 
 type CommentCreate struct {
@@ -23,6 +25,18 @@ type CommentCreate struct {
 
 type CommentUpdate struct {
 	Body string `json:"body"`
+}
+
+func (app *application) postExists(postId string) (bool, error) {
+	url := fmt.Sprintf("%s/posts/%s", app.postServiceAddr, postId)
+
+	resp, err := app.httpClient.Get(url)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK, nil
 }
 
 // GetComment godoc
@@ -104,8 +118,19 @@ func (app *application) CreateComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post does not exist", http.StatusBadRequest)
 		return
 	}
+
+	exists, err := app.postExists(postId)
+	if err != nil {
+		http.Error(w, "failed to verify post: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !exists {
+		http.Error(w, "Post does not exist", http.StatusBadRequest)
+		return
+	}
+
 	var comment CommentCreate
-	err := json.NewDecoder(r.Body).Decode(&comment)
+	err = json.NewDecoder(r.Body).Decode(&comment)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
