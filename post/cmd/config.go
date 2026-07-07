@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -8,7 +9,9 @@ import (
 )
 
 type Config struct {
-	addr string
+	addr      string
+	dbURI     string
+	kafkaAddr string
 }
 
 func Load() Config {
@@ -18,8 +21,27 @@ func Load() Config {
 	}
 
 	return Config{
-		addr: getEnv("ADDR", ":8080"),
+		addr:      getEnv("ADDR", ":8080"),
+		dbURI:     buildDBURI(),
+		kafkaAddr: getEnv("KAFKA_ADDR", "kafka-service:9092"),
 	}
+}
+
+// buildDBURI assembles a postgres connection string from individual env
+// vars, unless DATABASE_URL is set directly, in which case that wins.
+func buildDBURI() string {
+	if uri := os.Getenv("DATABASE_URL"); uri != "" {
+		return uri
+	}
+
+	host := getEnv("DB_HOST", "post-db")
+	port := getEnv("DB_PORT", "5432")
+	user := getEnv("DB_USER", "postgres")
+	password := getEnv("DB_PASSWORD", "password")
+	dbname := getEnv("DB_NAME", "postgres")
+	sslmode := getEnv("DB_SSLMODE", "disable")
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, password, host, port, dbname, sslmode)
 }
 
 func getEnv(key, fallback string) string {
