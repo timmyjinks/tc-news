@@ -23,7 +23,7 @@ jobs:
           - name: post
             dockerfile: ./post/cmd/Dockerfile
           - name: subscribe
-            dockerifle: ./subscribe/cmd/Dockerfile
+            dockerfile: ./subscribe/cmd/Dockerfile
           - name: vote
             dockerfile: ./vote/cmd/Dockerfile
           - name: comment
