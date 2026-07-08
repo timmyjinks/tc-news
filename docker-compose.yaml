@@ -26,7 +26,7 @@ services:
   comment:
     build:
       context: ./comment
-      dockerfile: ./cmd/Dockerfile
+      dockerfile: ./Dockerfile
     ports:
       - "8084:8080"
     networks:
