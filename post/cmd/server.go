@@ -113,6 +113,7 @@ func (app *application) ListPosts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	if err := json.NewEncoder(w).Encode(posts); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,9 +133,10 @@ func (app *application) GetPost(w http.ResponseWriter, r *http.Request) {
 	postId := mux.Vars(r)["post_id"]
 	posts, err := app.store.GetById(postId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+
 	if err := json.NewEncoder(w).Encode(posts); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

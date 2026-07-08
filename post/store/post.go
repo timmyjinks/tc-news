@@ -49,7 +49,7 @@ func (s *PostgreStore) Get(params ListPostsParams) ([]Post, error) {
 	}
 	defer rows.Close()
 
-	var posts []Post
+	var posts []Post = []Post{}
 	for rows.Next() {
 		var post Post
 		err := rows.Scan(&post.Id, &post.AuthorId, &post.Title, &post.Body, pq.Array(&post.Tags), &post.CreatedAt)
