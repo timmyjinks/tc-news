@@ -17,12 +17,11 @@ jobs:
       matrix:
         service:
           - auth
-          - comment
           - notification
           - post
           - subscribe
           - vote
-
+          
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -57,3 +56,15 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Build and push comment
+        uses: docker/build-push-action@v6
+        with:
+          context: ./comment
+          file: ./comment/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
