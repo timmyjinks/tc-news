@@ -163,13 +163,13 @@ TAG_SHARED="smoke-test-$NONCE"   # both posts share this tag
 TAG_A_ONLY="kafka-$NONCE"        # only post A has this tag
 
 code=$(req POST "$POST/posts" "{\"title\":\"Post A\",\"body\":\"$NONCE_POST_A\",\"tags\":[\"$TAG_SHARED\",\"$TAG_A_ONLY\"]}" "X-User-ID: $USER_A_ID")
-check "user A creates a post" 200 "$code"
+check "user A creates a post" 201 "$code"
 
 # small gap so created_at ordering between A and B is unambiguous
 sleep 1
 
 code=$(req POST "$POST/posts" "{\"title\":\"Post B\",\"body\":\"$NONCE_POST_B\",\"tags\":[\"$TAG_SHARED\"]}" "X-User-ID: $USER_B_ID")
-check "user B creates a post" 200 "$code"
+check "user B creates a post" 201 "$code"
 
 code=$(req GET "$POST/posts")
 check "list all posts" 200 "$code"
@@ -237,7 +237,7 @@ NONCE_COMMENT_1="comment-1-marker-$NONCE"
 NONCE_COMMENT_2="comment-2-marker-$NONCE"
 
 code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_1\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
-check "user B comments on post A" 200 "$code"
+check "user B comments on post A" 201 "$code"
 
 code=$(req GET "$COMMENT/posts/$POST_A_ID/comments")
 check "list comments on post A" 200 "$code"
@@ -251,7 +251,7 @@ if [[ -z "$COMMENT_1_ID" ]]; then
 fi
 
 code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_2\",\"parent_id\":\"$COMMENT_1_ID\"}" "X-User-ID: $USER_A_ID")
-check "user A replies to B's comment" 200 "$code"
+check "user A replies to B's comment" 201 "$code"
 
 code=$(req GET "$COMMENT/comments/$COMMENT_1_ID")
 check "get comment 1 by id" 200 "$code"
@@ -295,7 +295,7 @@ step "6. NOTIFICATION: user B comments again on post B -> A should be notified"
 # ============================================================================
 NONCE_COMMENT_3="comment-3-marker-$NONCE"
 code=$(req POST "$COMMENT/posts/$POST_B_ID/comments" "{\"body\":\"$NONCE_COMMENT_3\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
-check "user B comments on post B (should publish comment_created event)" 200 "$code"
+check "user B comments on post B (should publish comment_created event)" 201 "$code"
 
 echo "  waiting for the async kafka -> notification pipeline..."
 sleep 3
@@ -328,16 +328,16 @@ fi
 step "7. CLEANUP"
 # ============================================================================
 code=$(req DELETE "$COMMENT/comments/$COMMENT_1_ID" "" "X-User-ID: $USER_B_ID")
-check "delete comment 1" 200 "$code"
+check "delete comment 1" 204 "$code"
 
 code=$(req DELETE "$SUBSCRIBE/posts/$POST_B_ID/subscriptions" "" "X-User-ID: $USER_A_ID")
 check "user A unsubscribes from post B" 200 "$code"
 
 code=$(req DELETE "$POST/posts/$POST_A_ID" "" "X-User-ID: $USER_A_ID")
-check "delete post A" 200 "$code"
+check "delete post A" 204 "$code"
 
 code=$(req DELETE "$POST/posts/$POST_B_ID" "" "X-User-ID: $USER_B_ID")
-check "delete post B" 200 "$code"
+check "delete post B" 204 "$code"
 
 # ============================================================================
 step "SUMMARY"
