@@ -16,11 +16,19 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - auth
-          - notification
-          - post
-          - subscribe
-          - vote
+          - name: auth
+            context: ./cmd
+          - name: notification
+            context: ./cmd
+          - name: post
+            context: ./cmd
+          - name: subscribe
+            context: ./cmd
+          - name: vote
+            context: ./cmd
+
+          - name: comment
+            context: .
           
     steps:
       - name: Checkout repo
@@ -46,25 +54,16 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
 
-      - name: Build and push ${{ matrix.service }}
+      - name: Build and push ${{ matrix.service.name }}
         uses: docker/build-push-action@v6
         with:
-          context: ./${{ matrix.service }}
-          file: ./${{ matrix.service }}/cmd/Dockerfile
+          context: ./${{ matrix.service.context }}
+          file: ${{ matrix.service.context }}/cmd/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
 
-      - name: Build and push comment
-        uses: docker/build-push-action@v6
-        with:
-          context: ./comment
-          file: ./comment/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=comment
-          cache-to: type=gha,mode=max,scope=comment
+ 
 
