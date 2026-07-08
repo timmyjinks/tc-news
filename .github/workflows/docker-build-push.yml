@@ -17,17 +17,17 @@ jobs:
       matrix:
         service:
           - name: auth
-            context: ./cmd
+            dockerfile: ./auth/cmd/Dockerfile
           - name: notification
-            context: ./cmd
+            dockerfile: ./notification/cmd/Dockerfile
           - name: post
-            context: ./cmd
+            dockerfile: ./post/cmd/Dockerfile
           - name: subscribe
-            context: ./cmd
+            dockerifle: ./subscribe/cmd/Dockerfile
           - name: vote
-            context: ./cmd
+            dockerfile: ./vote/cmd/Dockerfile
           - name: comment
-            context: .
+            dockerfile: ./comment/Dockerfile
           
     steps:
       - name: Checkout repo
@@ -56,8 +56,8 @@ jobs:
       - name: Build and push ${{ matrix.service.name }}
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service.name }}/${{ matrix.service.context }}
-          file: ${{ matrix.service.context }}/Dockerfile
+          context: ${{ matrix.service.name }}
+          file: ${{ matrix.service.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
