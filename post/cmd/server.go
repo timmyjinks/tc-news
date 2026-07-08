@@ -36,7 +36,6 @@ type PostUpdate struct {
 	Tags  []string `json:"tags"`
 }
 
-// ErrorResponse is a generic error payload.
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
@@ -178,6 +177,7 @@ func (app *application) CreatePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusCreated)
 }
 
 // UpdatePost godoc
@@ -223,6 +223,7 @@ func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(200)
 }
 
 // DeletePost godoc
@@ -244,6 +245,7 @@ func (app *application) DeletePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user id", http.StatusUnauthorized)
 		return
 	}
+
 	if postId == "" {
 		http.Error(w, "Post does not exist", http.StatusBadRequest)
 		return
@@ -253,4 +255,6 @@ func (app *application) DeletePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(204)
 }
