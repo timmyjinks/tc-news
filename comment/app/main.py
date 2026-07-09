@@ -5,10 +5,10 @@ import asyncpg
 from fastapi import FastAPI, Header, HTTPException, Path, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
-from . import database, kafka_producer
+from . import config, database, kafka_producer
 from .models import CommentCreateRequest, CommentResponse, CommentUpdateRequest
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=config.settings.log_level)
 logger = logging.getLogger("comment")
 
 
@@ -198,3 +198,8 @@ async def delete_comment(
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host=config.settings.host, port=config.settings.port)

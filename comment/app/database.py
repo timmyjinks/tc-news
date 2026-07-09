@@ -1,12 +1,6 @@
-import os
-
 import asyncpg
 
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgres://postgres:password@comment-db:5432/postgres",
-)
+from . import config
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS comments (
@@ -24,7 +18,11 @@ _pool: asyncpg.Pool | None = None
 
 async def init_db() -> asyncpg.Pool:
     global _pool
-    _pool = await asyncpg.create_pool(dsn=DATABASE_URL)
+    _pool = await asyncpg.create_pool(
+        dsn=config.settings.database_url,
+        min_size=config.settings.db_pool_min_size,
+        max_size=config.settings.db_pool_max_size,
+    )
     async with _pool.acquire() as conn:
         await conn.execute(CREATE_TABLE_SQL)
     return _pool

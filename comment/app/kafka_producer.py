@@ -1,20 +1,18 @@
 import json
 import logging
-import os
 
 from aiokafka import AIOKafkaProducer
 
-logger = logging.getLogger("comment.kafka")
+from . import config
 
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service:9092")
-TOPIC = "notifications"
+logger = logging.getLogger("comment.kafka")
 
 _producer: AIOKafkaProducer | None = None
 
 
 async def start_producer() -> None:
     global _producer
-    _producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BROKER)
+    _producer = AIOKafkaProducer(bootstrap_servers=config.settings.kafka_broker)
     try:
         await _producer.start()
     except Exception as exc:  # pragma: no cover - matches Go's log.Println("[WARN]"...)
@@ -45,9 +43,6 @@ async def send_comment_created(comment_id: str, post_id: str, user_id: str, body
     }
 
     try:
-        await _producer.send_and_wait(TOPIC, json.dumps(envelope).encode("utf-8"))
+        await _producer.send_and_wait(config.settings.kafka_topic, json.dumps(envelope).encode("utf-8"))
     except Exception as exc:
-        # Matches: log.Println("[WARN] failed to publish comment_created event:", err)
-        # The original handler never surfaces this to the HTTP caller, so
-        # a publish failure does not fail the request.
         logger.warning("[WARN] failed to publish comment_created event: %s", exc)
