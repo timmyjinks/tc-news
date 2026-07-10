@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"sync"
 
 	"github.com/timmyjinks/notification/database"
 	"github.com/timmyjinks/notification/httpclient"
