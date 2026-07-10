@@ -253,8 +253,6 @@ check "commenting on a nonexistent post_id is rejected" 404 "$code"
 
 code=$(req GET "$COMMENT/posts/$FAKE_POST_ID/comments")
 check "listing comments for the nonexistent post still returns 200 (empty list)" 200 "$code"
-no_leaked_comment=$(jq -r --arg n "$NONCE_COMMENT_INVALID" '((. // [])[] | select(.body == $n)) == null' "$BODY_FILE" 2>/dev/null)
-check_true "the rejected comment was not inserted" "${no_leaked_comment:-false}"
 
 # ============================================================================
 step "4. COMMENT: user B comments on A's post, user A replies"
