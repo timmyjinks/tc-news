@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"sync"
 
 	"github.com/timmyjinks/notification/database"
-	"github.com/timmyjinks/notification/grpcclient"
+	"github.com/timmyjinks/notification/httpclient"
 	"github.com/timmyjinks/notification/kafka"
 	"github.com/timmyjinks/notification/store"
 )
@@ -30,14 +32,12 @@ func main() {
 		store: store,
 	}
 
-	subscribeClient, err := grpcclient.NewSubscribeClient(config.subscribeGRPCAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
+	subscribeClient := httpclient.NewSubscribeClient(config.subscribeHTTPAddr)
 
 	queue := kafka.NewKafkaService("notifications")
 
 	ctx := context.Background()
+
 	go func() {
 		for {
 			select {
@@ -58,4 +58,5 @@ func main() {
 	}()
 
 	app.Run(config.addr)
+
 }

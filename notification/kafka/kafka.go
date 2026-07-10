@@ -26,8 +26,9 @@ func NewKafkaService(topic string) *KafkaService {
 
 	c := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     []string{"kafka-service:9092"},
-		Topic:       topic,
+		Partition:   0,
 		GroupID:     fmt.Sprintf("%s-group", topic),
+		Topic:       topic,
 		StartOffset: kafka.LastOffset,
 	},
 	)

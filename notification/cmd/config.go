@@ -10,6 +10,7 @@ import (
 type Config struct {
 	addr              string
 	subscribeGRPCAddr string
+	subscribeHTTPAddr string
 }
 
 func Load() Config {
@@ -21,6 +22,7 @@ func Load() Config {
 	return Config{
 		addr:              getEnv("ADDR", ":8080"),
 		subscribeGRPCAddr: getEnv("SUBSCRIBE_GRPC_ADDR", "subscription:9090"),
+		subscribeHTTPAddr: getEnv("SUBSCRIBE_HTTP_ADDR", "http://subscription:8080"),
 	}
 }
 

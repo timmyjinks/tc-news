@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/timmyjinks/notification/grpcclient"
+	"github.com/timmyjinks/notification/httpclient"
 	"github.com/timmyjinks/notification/kafka"
 	"github.com/timmyjinks/notification/store"
 )
@@ -18,7 +18,7 @@ type CommentCreatedPayload struct {
 }
 
 // handleMessage fans a Kafka event out into per-follower notifications.
-func handleMessage(s *store.PostgreStore, subscribeClient *grpcclient.SubscribeClient, msg kafka.Message) error {
+func handleMessage(s *store.PostgreStore, subscribeClient *httpclient.SubscribeClient, msg kafka.Message) error {
 	switch msg.Type {
 	case "comment_created":
 		var payload CommentCreatedPayload
