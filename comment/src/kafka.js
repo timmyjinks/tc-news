@@ -1,0 +1,34 @@
+const { Kafka } = require("kafkajs");
+const config = require("./config");
+
+const kafka = new Kafka({
+  brokers: [config.kafkaBroker],
+});
+
+const producer = kafka.producer();
+
+async function connect() {
+  try {
+    await producer.connect();
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function publishComment(comment) {
+  await producer.send({
+    topic: config.kafkaTopic,
+    messages: [{
+      value: JSON.stringify({
+        id: "",
+        type: "comment_created",
+        payload: comment,
+      }),
+    }],
+  });
+}
+
+module.exports = {
+  connect,
+  publishComment,
+};
