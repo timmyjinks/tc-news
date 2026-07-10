@@ -17,7 +17,6 @@ type CommentCreatedPayload struct {
 	Body      string `json:"body"`
 }
 
-// handleMessage fans a Kafka event out into per-follower notifications.
 func handleMessage(s *store.PostgreStore, subscribeClient *httpclient.SubscribeClient, msg kafka.Message) error {
 	switch msg.Type {
 	case "comment_created":
