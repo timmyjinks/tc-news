@@ -42,5 +42,17 @@ class Settings:
         # Logging
         self.log_level: str = _get_env("LOG_LEVEL", "INFO")
 
+        # Post service (used for cross-service validation before creating a
+        # comment -- we don't trust the client's post_id alone, we ask the
+        # Post Service whether it's real). Inside docker-compose this is the
+        # "post" service on its container port 8080 (post/cmd's ADDR
+        # default), not the host-mapped 8083.
+        self.post_service_url: str = _get_env(
+            "POST_SERVICE_URL", "http://post:8080"
+        ).rstrip("/")
+        self.post_service_timeout_seconds: float = float(
+            _get_env("POST_SERVICE_TIMEOUT_SECONDS", "5")
+        )
+
 
 settings = Settings()

@@ -31,6 +31,13 @@ services:
       - "8084:8080"
     networks:
       - tc-news
+    environment:
+      # Cross-service validation: comment doesn't trust the client's
+      # post_id alone, it calls back to the post service to confirm the
+      # post exists before creating a comment. "post" here is the compose
+      # service name/internal container port (8080), not the host-mapped
+      # 8083.
+      POST_SERVICE_URL: "http://post:8080"
     depends_on:
       comment-db:
         condition: service_started

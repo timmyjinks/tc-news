@@ -5,7 +5,7 @@ import asyncpg
 from fastapi import FastAPI, Header, HTTPException, Path, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
-from . import config, database, kafka_producer
+from . import config, database, kafka_producer, post_client
 from .models import CommentCreateRequest, CommentResponse, CommentUpdateRequest
 
 logging.basicConfig(level=config.settings.log_level)
@@ -101,11 +101,29 @@ async def create_comment(
     comment: CommentCreateRequest,
     x_user_id: str | None = Header(default=None, alias="X-User-ID"),
 ):
-    """Creates a new comment (optionally a reply, via parent_id) on a post."""
+    """Creates a new comment (optionally a reply, via parent_id) on a post.
+
+    Stretch requirement: before adding the comment, we don't just trust the
+    client's post_id -- we call the Post Service (POST_SERVICE_URL) to
+    confirm the post actually exists. Missing post -> 404. Post Service
+    unreachable/misbehaving -> 422, since we can't verify the client's
+    input and won't silently accept it.
+    """
     if not x_user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user id")
     if not post_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Post does not exist")
+
+    try:
+        exists = await post_client.post_exists(post_id)
+    except post_client.PostServiceUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"could not verify post {post_id} with the post service: {exc}",
+        )
+
+    if not exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post does not exist")
 
     pool = database.get_pool()
     try:
