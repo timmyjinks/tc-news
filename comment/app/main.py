@@ -31,8 +31,6 @@ app = FastAPI(
 
 @app.exception_handler(HTTPException)
 async def plain_text_http_exception_handler(request: Request, exc: HTTPException):
-    # Matches the original service's plain-text error bodies (net/http's
-    # http.Error), rather than FastAPI's default {"detail": ...} envelope.
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
 
 

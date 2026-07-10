@@ -26,27 +26,18 @@ def _build_db_uri() -> str:
 
 class Settings:
     def __init__(self) -> None:
-        # Database
         self.database_url: str = _build_db_uri()
         self.db_pool_min_size: int = int(_get_env("DB_POOL_MIN_SIZE", "1"))
         self.db_pool_max_size: int = int(_get_env("DB_POOL_MAX_SIZE", "10"))
 
-        # Kafka
         self.kafka_broker: str = _get_env("KAFKA_BROKER", "kafka-service:9092")
         self.kafka_topic: str = _get_env("KAFKA_TOPIC", "notifications")
 
-        # HTTP server
         self.host: str = _get_env("HOST", "0.0.0.0")
         self.port: int = int(_get_env("PORT", "8080"))
 
-        # Logging
         self.log_level: str = _get_env("LOG_LEVEL", "INFO")
 
-        # Post service (used for cross-service validation before creating a
-        # comment -- we don't trust the client's post_id alone, we ask the
-        # Post Service whether it's real). Inside docker-compose this is the
-        # "post" service on its container port 8080 (post/cmd's ADDR
-        # default), not the host-mapped 8083.
         self.post_service_url: str = _get_env(
             "POST_SERVICE_URL", "http://post:8080"
         ).rstrip("/")

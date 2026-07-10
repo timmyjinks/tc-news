@@ -34,9 +34,6 @@ async def post_exists(post_id: str) -> bool:
     if resp.status_code == 200:
         return True
     if resp.status_code == 404:
-        # post/cmd's GetPost handler returns a bare 404 for any lookup
-        # error (row not found or otherwise), so this is the "does not
-        # exist" signal to trust.
         return False
 
     logger.warning(
