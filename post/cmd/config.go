@@ -27,8 +27,6 @@ func Load() Config {
 	}
 }
 
-// buildDBURI assembles a postgres connection string from individual env
-// vars, unless DATABASE_URL is set directly, in which case that wins.
 func buildDBURI() string {
 	if uri := os.Getenv("DATABASE_URL"); uri != "" {
 		return uri
