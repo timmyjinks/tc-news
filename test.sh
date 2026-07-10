@@ -4,9 +4,10 @@
 # ============================================================================
 # Walks the full user journey back-to-back:
 #   register user A -> user A posts -> register user B -> user B posts ->
-#   list/paginate/filter/sort posts -> user B comments on A's post -> user A
-#   replies -> votes -> user A subscribes to B's post -> B comments again ->
-#   notification fires for A -> mark/read/delete notifications -> cleanup
+#   list/paginate/filter/sort posts -> comment cross-service validation ->
+#   user B comments on A's post -> user A replies -> votes -> user A
+#   subscribes to B's post -> B comments again -> notification fires for A ->
+#   mark/read/delete notifications -> cleanup
 #
 # Requires: bash, curl, jq, (uuidgen or python3)
 #
@@ -34,6 +35,13 @@
 #     the real casing. (store.Post does have json tags -- id/author_id/
 #     title/body/tags/created_at -- so posts are the one resource that
 #     matches its docs.)
+#  7. comment.create_comment now performs cross-service validation: before
+#     inserting, it calls the post service (POST_SERVICE_URL) to confirm
+#     post_id actually exists. Commenting on a post_id that doesn't exist
+#     now returns 404 "Post does not exist" instead of silently trusting the
+#     client and inserting an orphaned comment. If the post service itself
+#     is unreachable/misbehaving, comment creation returns 422 instead of
+#     500, since the request couldn't be verified either way.
 # ----------------------------------------------------------------------------
 
 set -uo pipefail
@@ -231,13 +239,31 @@ code=$(req GET "$POST/posts?sort=sideways")
 check "invalid sort value is rejected" 400 "$code"
 
 # ============================================================================
-step "3. COMMENT: user B comments on A's post, user A replies"
+step "3. COMMENT: cross-service validation against the post service"
+# ============================================================================
+# The comment service no longer trusts a client-supplied post_id at face
+# value -- it calls back to the post service to confirm the post actually
+# exists before inserting a comment (see comment/app/post_client.py). A
+# random UUID that was never used as a post id should be rejected with 404.
+FAKE_POST_ID=$(UUID)
+NONCE_COMMENT_INVALID="comment-invalid-post-marker-$NONCE"
+
+code=$(req POST "$COMMENT/posts/$FAKE_POST_ID/comments" "{\"body\":\"$NONCE_COMMENT_INVALID\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
+check "commenting on a nonexistent post_id is rejected" 404 "$code"
+
+code=$(req GET "$COMMENT/posts/$FAKE_POST_ID/comments")
+check "listing comments for the nonexistent post still returns 200 (empty list)" 200 "$code"
+no_leaked_comment=$(jq -r --arg n "$NONCE_COMMENT_INVALID" '((. // [])[] | select(.body == $n)) == null' "$BODY_FILE" 2>/dev/null)
+check_true "the rejected comment was not inserted" "${no_leaked_comment:-false}"
+
+# ============================================================================
+step "4. COMMENT: user B comments on A's post, user A replies"
 # ============================================================================
 NONCE_COMMENT_1="comment-1-marker-$NONCE"
 NONCE_COMMENT_2="comment-2-marker-$NONCE"
 
 code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_1\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
-check "user B comments on post A" 201 "$code"
+check "user B comments on post A (post exists, passes cross-service check)" 201 "$code"
 
 code=$(req GET "$COMMENT/posts/$POST_A_ID/comments")
 check "list comments on post A" 200 "$code"
@@ -260,7 +286,7 @@ code=$(req PUT "$COMMENT/comments/$COMMENT_1_ID" '{"body":"edited by B"}' "X-Use
 check "user B edits their own comment" 200 "$code"
 
 # ============================================================================
-step "4. VOTE: user A votes on post B, user B votes on comment 1"
+step "5. VOTE: user A votes on post B, user B votes on comment 1"
 # ============================================================================
 if [[ "$VOTE_UP" == "0" ]]; then
   echo "  SKIPPED - vote service not reachable (see NOTES at top of script)."
@@ -279,7 +305,7 @@ else
 fi
 
 # ============================================================================
-step "5. SUBSCRIBE: user A follows post B"
+step "6. SUBSCRIBE: user A follows post B"
 # ============================================================================
 code=$(req POST "$SUBSCRIBE/posts/$POST_B_ID/subscriptions" "" "X-User-ID: $USER_A_ID")
 check "user A subscribes to post B" 200 "$code"
@@ -291,7 +317,7 @@ jq -r --arg pid "$POST_B_ID" '[(. // [])[] | select(.PostId == $pid)] | length' 
   xargs -I{} echo "  subscriptions matching post B: {}"
 
 # ============================================================================
-step "6. NOTIFICATION: user B comments again on post B -> A should be notified"
+step "7. NOTIFICATION: user B comments again on post B -> A should be notified"
 # ============================================================================
 NONCE_COMMENT_3="comment-3-marker-$NONCE"
 code=$(req POST "$COMMENT/posts/$POST_B_ID/comments" "{\"body\":\"$NONCE_COMMENT_3\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
@@ -325,7 +351,7 @@ else
 fi
 
 # ============================================================================
-step "7. CLEANUP"
+step "8. CLEANUP"
 # ============================================================================
 code=$(req DELETE "$COMMENT/comments/$COMMENT_1_ID" "" "X-User-ID: $USER_B_ID")
 check "delete comment 1" 204 "$code"
