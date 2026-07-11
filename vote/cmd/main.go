@@ -16,7 +16,7 @@ import (
 func main() {
 	config := Load()
 
-	db, err := database.NewPostgresStorage()
+	db, err := database.NewPostgresStorage(config.dbURI)
 	if err != nil {
 		log.Fatal(err)
 	}
