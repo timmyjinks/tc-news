@@ -7,8 +7,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func NewPostgresStorage() (*sql.DB, error) {
-	db, err := sql.Open("postgres", "postgres://postgres:password@subscribe-db:5432/postgres?sslmode=disable")
+func NewPostgresStorage(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}

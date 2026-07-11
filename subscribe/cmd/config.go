@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 
 type Config struct {
 	addr      string
+	dbURI     string
 	grpcAddr  string
 	jwtSecret string
 }
@@ -21,9 +23,25 @@ func Load() Config {
 
 	return Config{
 		addr:      getEnv("ADDR", ":8080"),
+		dbURI:     buildDBURI(),
 		grpcAddr:  getEnv("GRPC_ADDR", ":9090"),
 		jwtSecret: getEnv("JWT_SECRET", "testing"),
 	}
+}
+
+func buildDBURI() string {
+	if uri := os.Getenv("DATABASE_URL"); uri != "" {
+		return uri
+	}
+
+	host := getEnv("DB_HOST", "post-db")
+	port := getEnv("DB_PORT", "5432")
+	user := getEnv("DB_USER", "postgres")
+	password := getEnv("DB_PASSWORD", "password")
+	dbname := getEnv("DB_NAME", "postgres")
+	sslmode := getEnv("DB_SSLMODE", "disable")
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, password, host, port, dbname, sslmode)
 }
 
 func getEnv(key, fallback string) string {
