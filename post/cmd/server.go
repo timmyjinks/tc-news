@@ -12,7 +12,8 @@ import (
 )
 
 type application struct {
-	store *store.PostgreStore
+	store     *store.PostgreStore
+	jwtSecret string
 }
 
 type Post struct {
@@ -48,11 +49,13 @@ func (app *application) Run(addr string) error {
 		Handler: r,
 	}
 
+	auth := requireAuth(app.jwtSecret)
+
 	r.HandleFunc("/posts", app.ListPosts).Methods("GET")
 	r.HandleFunc("/posts/{post_id}", app.GetPost).Methods("GET")
-	r.HandleFunc("/posts", app.CreatePost).Methods("POST")
-	r.HandleFunc("/posts/{post_id}", app.UpdatePost).Methods("PUT")
-	r.HandleFunc("/posts/{post_id}", app.DeletePost).Methods("DELETE")
+	r.HandleFunc("/posts", auth(app.CreatePost)).Methods("POST")
+	r.HandleFunc("/posts/{post_id}", auth(app.UpdatePost)).Methods("PUT")
+	r.HandleFunc("/posts/{post_id}", auth(app.DeletePost)).Methods("DELETE")
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()
@@ -157,11 +160,7 @@ func (app *application) GetPost(w http.ResponseWriter, r *http.Request) {
 // @Failure      500        {object}  ErrorResponse
 // @Router       /posts [post]
 func (app *application) CreatePost(w http.ResponseWriter, r *http.Request) {
-	authorId := r.Header.Get("X-User-ID")
-	if authorId == "" {
-		http.Error(w, "Invalid user id", http.StatusUnauthorized)
-		return
-	}
+	authorId := userIDFromContext(r)
 
 	var post PostCreate
 	err := json.NewDecoder(r.Body).Decode(&post)
@@ -197,12 +196,8 @@ func (app *application) CreatePost(w http.ResponseWriter, r *http.Request) {
 // @Failure      500        {object}  ErrorResponse
 // @Router       /posts/{post_id} [put]
 func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
-	authorId := r.Header.Get("X-User-ID")
+	authorId := userIDFromContext(r)
 	postId := mux.Vars(r)["post_id"]
-	if authorId == "" {
-		http.Error(w, "Invalid user id", http.StatusUnauthorized)
-		return
-	}
 	if postId == "" {
 		http.Error(w, "Post does not exist", http.StatusBadRequest)
 		return
@@ -240,13 +235,8 @@ func (app *application) UpdatePost(w http.ResponseWriter, r *http.Request) {
 // @Failure      500        {object}  ErrorResponse
 // @Router       /posts/{post_id} [delete]
 func (app *application) DeletePost(w http.ResponseWriter, r *http.Request) {
-	authorId := r.Header.Get("X-User-ID")
+	authorId := userIDFromContext(r)
 	postId := mux.Vars(r)["post_id"]
-
-	if authorId == "" {
-		http.Error(w, "Invalid user id", http.StatusUnauthorized)
-		return
-	}
 
 	if postId == "" {
 		http.Error(w, "Post does not exist", http.StatusBadRequest)

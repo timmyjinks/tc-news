@@ -21,4 +21,6 @@ module.exports = {
 
   postServiceUrl: env("POST_SERVICE_URL", "http://post:8080"),
   postServiceTimeout: Number(env("POST_SERVICE_TIMEOUT_SECONDS", "5")) * 1000,
+
+  jwtSecret: env("JWT_SECRET", "testing"),
 };

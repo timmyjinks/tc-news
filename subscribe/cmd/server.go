@@ -10,7 +10,8 @@ import (
 )
 
 type application struct {
-	store *store.PostgreStore
+	store     *store.PostgreStore
+	jwtSecret string
 }
 
 func (app *application) Run(addr string) error {
@@ -21,13 +22,10 @@ func (app *application) Run(addr string) error {
 		Handler: r,
 	}
 
-	r.HandleFunc("/users/subscriptions", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
+	auth := requireAuth(app.jwtSecret)
 
-		if userId == "" {
-			http.Error(w, "Invalid user id", http.StatusUnauthorized)
-			return
-		}
+	r.HandleFunc("/users/subscriptions", auth(func(w http.ResponseWriter, r *http.Request) {
+		userId := userIDFromContext(r)
 
 		subscriptions, err := app.store.Get(userId)
 		if err != nil {
@@ -39,11 +37,10 @@ func (app *application) Run(addr string) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}).Methods("GET")
+	})).Methods("GET")
 
-	// GetSubscribers is the HTTP equivalent of the gRPC SubscribeService.GetSubscribers
-	// call: it returns the plain list of user IDs following a post. Intended for
-	// internal service-to-service use (e.g. by the notification service).
+	// Internal service-to-service call (used by notification) -- not user
+	// facing, so it stays outside the auth middleware.
 	r.HandleFunc("/posts/{post_id}/subscribers", func(w http.ResponseWriter, r *http.Request) {
 		postId := mux.Vars(r)["post_id"]
 
@@ -69,14 +66,9 @@ func (app *application) Run(addr string) error {
 		}
 	}).Methods("GET")
 
-	r.HandleFunc("/posts/{post_id}/subscriptions", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
+	r.HandleFunc("/posts/{post_id}/subscriptions", auth(func(w http.ResponseWriter, r *http.Request) {
+		userId := userIDFromContext(r)
 		postId := mux.Vars(r)["post_id"]
-
-		if userId == "" {
-			http.Error(w, "Invalid user id", http.StatusUnauthorized)
-			return
-		}
 
 		if postId == "" {
 			http.Error(w, "Post does not exist", http.StatusBadRequest)
@@ -91,16 +83,11 @@ func (app *application) Run(addr string) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}).Methods("POST")
+	})).Methods("POST")
 
-	r.HandleFunc("/posts/{post_id}/subscriptions", func(w http.ResponseWriter, r *http.Request) {
-		userId := r.Header.Get("X-User-ID")
+	r.HandleFunc("/posts/{post_id}/subscriptions", auth(func(w http.ResponseWriter, r *http.Request) {
+		userId := userIDFromContext(r)
 		postId := mux.Vars(r)["post_id"]
-
-		if userId == "" {
-			http.Error(w, "Invalid user id", http.StatusUnauthorized)
-			return
-		}
 
 		if postId == "" {
 			http.Error(w, "Post does not exist", http.StatusBadRequest)
@@ -112,7 +99,7 @@ func (app *application) Run(addr string) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}).Methods("DELETE")
+	})).Methods("DELETE")
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()

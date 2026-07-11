@@ -97,9 +97,9 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := store.Data{Name: user.Name, TTL: time.Hour * 24 * 7}
+	data := store.Data{Id: user.Id, Name: user.Name, TTL: time.Hour * 24 * 7}
 	refreshToken := generateRefreshToken()
-	accessToken, err := app.generateAccessToken(store.Data{Name: user.Name, TTL: time.Minute * 15})
+	accessToken, err := app.generateAccessToken(store.Data{Id: user.Id, Name: user.Name, TTL: time.Minute * 15})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -164,24 +164,32 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := app.verifyToken(tokenString)
+	claims, err := app.verifyToken(tokenString)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	name, err := data.GetSubject()
+	userId, err := claims.GetSubject()
+	if err != nil || userId == "" {
+		http.Error(w, "invalid token subject", http.StatusUnauthorized)
+		return
+	}
+
+	// Re-fetch the user so a deleted/renamed account can't keep refreshing,
+	// and so the reissued token carries an up-to-date Name.
+	user, err := app.userStore.GetById(userId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	refreshToken := generateRefreshToken()
-	if err := app.store.Create(refreshToken, store.Data{Name: name, TTL: time.Minute * 15}); err != nil {
+	if err := app.store.Create(refreshToken, store.Data{Id: user.Id, Name: user.Name, TTL: time.Hour * 24 * 7}); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	accessToken, err := app.generateAccessToken(store.Data{Name: name, TTL: time.Minute * 15})
+	accessToken, err := app.generateAccessToken(store.Data{Id: user.Id, Name: user.Name, TTL: time.Minute * 15})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -312,7 +320,7 @@ func generateRefreshToken() string {
 func (app *application) generateAccessToken(data store.Data) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Issuer:    "tysoncloud",
-		Subject:   data.Name,
+		Subject:   data.Id,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(data.TTL)),
 	})
 	return token.SignedString([]byte(app.jwtSecret))

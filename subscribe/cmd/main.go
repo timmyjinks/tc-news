@@ -24,7 +24,8 @@ func main() {
 	store := store.NewPostgreStore(db)
 
 	app := application{
-		store: store,
+		store:     store,
+		jwtSecret: config.jwtSecret,
 	}
 
 	app.Run(config.addr)

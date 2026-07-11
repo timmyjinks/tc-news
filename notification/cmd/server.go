@@ -10,7 +10,8 @@ import (
 )
 
 type application struct {
-	store *store.PostgreStore
+	store     *store.PostgreStore
+	jwtSecret string
 }
 
 type VoteInsert struct {
@@ -28,11 +29,7 @@ type VoteInsert struct {
 // @Failure      500        {string}  string  "Internal server error"
 // @Router       /user/notifications [get]
 func (app *application) ListNotifications(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
-	if userId == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userId := userIDFromContext(r)
 	notifications, err := app.store.Get(userId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -52,12 +49,8 @@ func (app *application) ListNotifications(w http.ResponseWriter, r *http.Request
 // @Failure      500              {string}  string  "Internal server error"
 // @Router       /notifications/{notification_id}/read [patch]
 func (app *application) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
+	userId := userIDFromContext(r)
 	notificationId := mux.Vars(r)["notification_id"]
-	if userId == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
 	err := app.store.Update(userId, notificationId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -75,11 +68,7 @@ func (app *application) MarkNotificationRead(w http.ResponseWriter, r *http.Requ
 // @Failure      500        {string}  string  "Internal server error"
 // @Router       /notifications/read-all [patch]
 func (app *application) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
-	if userId == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
+	userId := userIDFromContext(r)
 	err := app.store.UpdateAll(userId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -99,12 +88,8 @@ func (app *application) MarkAllNotificationsRead(w http.ResponseWriter, r *http.
 // @Failure      500              {string}  string  "Internal server error"
 // @Router       /notifications/{notification_id} [delete]
 func (app *application) DeleteNotification(w http.ResponseWriter, r *http.Request) {
-	userId := r.Header.Get("X-User-ID")
+	userId := userIDFromContext(r)
 	notificationId := mux.Vars(r)["notification_id"]
-	if userId == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
 	if notificationId == "" {
 		http.Error(w, "Notification does not exist", http.StatusBadRequest)
 		return
@@ -122,10 +107,12 @@ func (app *application) Run(addr string) error {
 		Handler: r,
 	}
 
-	r.HandleFunc("/user/notifications", app.ListNotifications).Methods("GET")
-	r.HandleFunc("/notifications/{notification_id}/read", app.MarkNotificationRead).Methods("PATCH")
-	r.HandleFunc("/notifications/read-all", app.MarkAllNotificationsRead).Methods("PATCH")
-	r.HandleFunc("/notifications/{notification_id}", app.DeleteNotification).Methods("DELETE")
+	auth := requireAuth(app.jwtSecret)
+
+	r.HandleFunc("/user/notifications", auth(app.ListNotifications)).Methods("GET")
+	r.HandleFunc("/notifications/{notification_id}/read", auth(app.MarkNotificationRead)).Methods("PATCH")
+	r.HandleFunc("/notifications/read-all", auth(app.MarkAllNotificationsRead)).Methods("PATCH")
+	r.HandleFunc("/notifications/{notification_id}", auth(app.DeleteNotification)).Methods("DELETE")
 
 	fmt.Printf("Listening on http://localhost%s\n", server.Addr)
 	return server.ListenAndServe()

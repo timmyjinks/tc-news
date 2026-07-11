@@ -3,6 +3,7 @@ package store
 import "time"
 
 type Data struct {
+	Id   string        `redis:"id"`
 	Name string        `redis:"name"`
 	TTL  time.Duration `redis:"ttl"`
 }

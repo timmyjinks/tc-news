@@ -19,6 +19,7 @@ func (s *RedisStore) Exists(key string) (bool, error) {
 
 func (s *RedisStore) Create(key string, value Data) error {
 	res := s.db.HSet(context.Background(), key, map[string]interface{}{
+		"id":   value.Id,
 		"name": value.Name,
 	})
 	s.db.Expire(context.Background(), key, value.TTL)

@@ -8,7 +8,8 @@ import (
 )
 
 type Config struct {
-	addr string
+	addr      string
+	jwtSecret string
 }
 
 func Load() Config {
@@ -18,7 +19,8 @@ func Load() Config {
 	}
 
 	return Config{
-		addr: getEnv("ADDR", ":8080"),
+		addr:      getEnv("ADDR", ":8080"),
+		jwtSecret: getEnv("JWT_SECRET", "testing"),
 	}
 }
 

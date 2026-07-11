@@ -3,6 +3,7 @@ const router = require("express").Router();
 const { pool } = require("../db");
 const kafka = require("../kafka");
 const postClient = require("../postClient");
+const requireAuth = require("../middleware/requireAuth");
 
 router.get("/comments/:commentId", async (req, res, next) => {
   try {
@@ -35,14 +36,11 @@ router.get("/posts/:postId/comments", async (req, res, next) => {
   }
 });
 
-router.post("/posts/:postId/comments", async (req, res, next) => {
+router.post("/posts/:postId/comments", requireAuth, async (req, res, next) => {
 
   try {
 
-    const userId = req.header("X-User-ID");
-
-    if (!userId)
-      return res.status(401).send("Invalid user id");
+    const userId = req.userId;
 
     const exists = await postClient.postExists(req.params.postId);
 
@@ -76,11 +74,11 @@ router.post("/posts/:postId/comments", async (req, res, next) => {
 
 });
 
-router.put("/comments/:commentId", async (req, res, next) => {
+router.put("/comments/:commentId", requireAuth, async (req, res, next) => {
 
   try {
 
-    const userId = req.header("X-User-ID");
+    const userId = req.userId;
 
     const { rows } = await pool.query(`
             UPDATE comments
@@ -105,11 +103,11 @@ router.put("/comments/:commentId", async (req, res, next) => {
 
 });
 
-router.delete("/comments/:commentId", async (req, res, next) => {
+router.delete("/comments/:commentId", requireAuth, async (req, res, next) => {
 
   try {
 
-    const userId = req.header("X-User-ID");
+    const userId = req.userId;
 
     const result = await pool.query(
       "DELETE FROM comments WHERE id=$1 AND user_id=$2",

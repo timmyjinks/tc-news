@@ -12,6 +12,7 @@ type Config struct {
 	addr      string
 	dbURI     string
 	kafkaAddr string
+	jwtSecret string
 }
 
 func Load() Config {
@@ -24,6 +25,7 @@ func Load() Config {
 		addr:      getEnv("ADDR", ":8080"),
 		dbURI:     buildDBURI(),
 		kafkaAddr: getEnv("KAFKA_ADDR", "kafka-service:9092"),
+		jwtSecret: getEnv("JWT_SECRET", "testing"),
 	}
 }
 
