@@ -16,10 +16,10 @@ import (
 func main() {
 	config := Load()
 
-	redisDb := database.NewRedisStorage()
+	redisDb := database.NewRedisStorage(config.sessionDBHost, config.sessionDBPort)
 	redisStore := store.NewRedisStore(redisDb)
 
-	postgresDb, err := database.NewPostgresStorage()
+	postgresDb, err := database.NewPostgresStorage(config.userDBHost, config.userDBPort)
 	if err != nil {
 		log.Fatal(err)
 	}

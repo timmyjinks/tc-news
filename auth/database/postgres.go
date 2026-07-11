@@ -2,13 +2,15 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/lib/pq"
 )
 
-func NewPostgresStorage() (*sql.DB, error) {
-	db, err := sql.Open("postgres", "postgres://postgres:password@auth-postgres-db:5432/postgres?sslmode=disable")
+func NewPostgresStorage(host, port string) (*sql.DB, error) {
+	dsn := fmt.Sprintf("postgres://postgres:password@%s:%s/postgres?sslmode=disable", host, port)
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
