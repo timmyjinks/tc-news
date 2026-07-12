@@ -170,19 +170,26 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	name, err := data.GetSubject()
+	id, err := data.GetSubject()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
+	user, err := app.userStore.GetById(id)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
 	refreshToken := generateRefreshToken()
-	if err := app.store.Create(refreshToken, store.Data{Name: name, TTL: time.Hour * 24 * 7}); err != nil {
+	if err := app.store.Create(refreshToken, store.Data{Id: id, Name: user.Name, TTL: time.Hour * 24 * 7}); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	accessToken, err := app.generateAccessToken(store.Data{Name: name, TTL: time.Minute * 15})
+	accessToken, err := app.generateAccessToken(store.Data{Id: id, Name: user.Name, TTL: time.Minute * 15})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
