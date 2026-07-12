@@ -51,7 +51,7 @@ func (app *application) ListNotifications(w http.ResponseWriter, r *http.Request
 func (app *application) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	userId := userIDFromContext(r)
 	notificationId := mux.Vars(r)["notification_id"]
-	err := app.store.Update(userId, notificationId)
+	err := app.store.Update(notificationId, userId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
