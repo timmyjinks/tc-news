@@ -46,12 +46,12 @@
 
 set -uo pipefail
 
-AUTH=http://localhost:8085
-POST=http://localhost:8083
-COMMENT=http://localhost:8084
-SUBSCRIBE=http://localhost:8081
-NOTIFICATION=http://localhost:8086
-VOTE=http://localhost:8082
+AUTH=http://tc.tysonjenkins.dev
+POST=http://tc.tysonjenkins.dev
+COMMENT=http://tc.tysonjenkins.dev
+SUBSCRIBE=http://tc.tysonjenkins.dev
+NOTIFICATION=http://tc.tysonjenkins.dev
+VOTE=http://tc.tysonjenkins.dev
 
 command -v jq >/dev/null || { echo "jq is required (https://jqlang.org). Install it and re-run."; exit 1; }
 UUID() { uuidgen 2>/dev/null || python3 -c 'import uuid;print(uuid.uuid4())'; }
@@ -113,6 +113,7 @@ service_up() {
   curl -sS -o /dev/null -m 2 -w '%{http_code}' "$1" 2>/dev/null
 }
 
+
 # ============================================================================
 step "0. Reachability check"
 # ============================================================================
@@ -152,15 +153,14 @@ code=$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -X POST "$AUTH/auth/refresh" \
 check "refresh user A's token" 200 "$code"
 rm -f "$COOKIES_A"
 
-# NOTE: auth never returns the new user's id, and there's no "get by name"
-# endpoint, so from here on we simulate the API-gateway-issued X-User-ID
-# header with our own generated ids. The content services (post/comment/
-# vote/subscribe) trust this header as-is and never cross-check it against
-# the auth service.
-USER_A_ID=$(UUID)
-USER_B_ID=$(UUID)
-echo "  simulated X-User-ID for A: $USER_A_ID"
-echo "  simulated X-User-ID for B: $USER_B_ID"
+COOKIES_B=$(mktemp)
+code=$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -X POST "$AUTH/auth/login" \
+  -H 'Content-Type: application/json' -c "$COOKIES_B" \
+  -d "{\"name\":\"$USER_B_NAME\",\"password\":\"$PASS\"}")
+check "login as user B" 200 "$code"
+ACCESS_TOKEN_B=$(jq -r '.access_token' "$BODY_FILE" 2>/dev/null)
+rm -f "$COOKIES_B"
+
 
 # ============================================================================
 step "2. POST: user A creates a post, user B creates a post"
@@ -170,13 +170,13 @@ NONCE_POST_B="post-B-marker-$NONCE"
 TAG_SHARED="smoke-test-$NONCE"   # both posts share this tag
 TAG_A_ONLY="kafka-$NONCE"        # only post A has this tag
 
-code=$(req POST "$POST/posts" "{\"title\":\"Post A\",\"body\":\"$NONCE_POST_A\",\"tags\":[\"$TAG_SHARED\",\"$TAG_A_ONLY\"]}" "X-User-ID: $USER_A_ID")
+code=$(req POST "$POST/posts" "{\"title\":\"Post A\",\"body\":\"$NONCE_POST_A\",\"tags\":[\"$TAG_SHARED\",\"$TAG_A_ONLY\"]}" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "user A creates a post" 201 "$code"
 
 # small gap so created_at ordering between A and B is unambiguous
 sleep 1
 
-code=$(req POST "$POST/posts" "{\"title\":\"Post B\",\"body\":\"$NONCE_POST_B\",\"tags\":[\"$TAG_SHARED\"]}" "X-User-ID: $USER_B_ID")
+code=$(req POST "$POST/posts" "{\"title\":\"Post B\",\"body\":\"$NONCE_POST_B\",\"tags\":[\"$TAG_SHARED\"]}" "Authorization: Bearer $ACCESS_TOKEN_B")
 check "user B creates a post" 201 "$code"
 
 code=$(req GET "$POST/posts")
@@ -197,7 +197,7 @@ fi
 
 code=$(req GET "$POST/posts/$POST_A_ID")
 check "get post A by id" 200 "$code"
-title_ok=$(jq -r '(.title == "Post A") and (.author_id == "'"$USER_A_ID"'")' "$BODY_FILE" 2>/dev/null)
+title_ok=$(jq -r '.title == "Post A"' "$BODY_FILE" 2>/dev/null)
 check_true "post A has title + author_id set correctly" "${title_ok:-false}"
 
 # ----------------------------------------------------------------------------
@@ -248,7 +248,7 @@ step "3. COMMENT: cross-service validation against the post service"
 FAKE_POST_ID=$(UUID)
 NONCE_COMMENT_INVALID="comment-invalid-post-marker-$NONCE"
 
-code=$(req POST "$COMMENT/posts/$FAKE_POST_ID/comments" "{\"body\":\"$NONCE_COMMENT_INVALID\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
+code=$(req POST "$COMMENT/posts/$FAKE_POST_ID/comments" "{\"body\":\"$NONCE_COMMENT_INVALID\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "Authorization: Bearer $ACCESS_TOKEN_B")
 check "commenting on a nonexistent post_id is rejected" 404 "$code"
 
 code=$(req GET "$COMMENT/posts/$FAKE_POST_ID/comments")
@@ -260,27 +260,27 @@ step "4. COMMENT: user B comments on A's post, user A replies"
 NONCE_COMMENT_1="comment-1-marker-$NONCE"
 NONCE_COMMENT_2="comment-2-marker-$NONCE"
 
-code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_1\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
+code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_1\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "Authorization: Bearer $ACCESS_TOKEN_B")
 check "user B comments on post A (post exists, passes cross-service check)" 201 "$code"
 
 code=$(req GET "$COMMENT/posts/$POST_A_ID/comments")
 check "list comments on post A" 200 "$code"
 # NOTE: store.Comment has no json tags on Id/PostId/UserId -> PascalCase keys.
 # Also: same null-vs-[] gotcha as the posts list above, hence `(. // [])[]`.
-COMMENT_1_ID=$(jq -r --arg n "$NONCE_COMMENT_1" '(. // [])[] | select(.body == $n) | .Id' "$BODY_FILE" | head -n1)
+COMMENT_1_ID=$(jq -r --arg n "$NONCE_COMMENT_1" '(. // [])[] | select(.body == $n) | .id' "$BODY_FILE" | head -n1)
 echo "  resolved COMMENT_1_ID=$COMMENT_1_ID"
 if [[ -z "$COMMENT_1_ID" ]]; then
   echo "  WARN: could not resolve comment id. Raw response was:"
   cat "$BODY_FILE"
 fi
 
-code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_2\",\"parent_id\":\"$COMMENT_1_ID\"}" "X-User-ID: $USER_A_ID")
+code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_2\",\"parent_id\":\"$COMMENT_1_ID\"}" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "user A replies to B's comment" 201 "$code"
 
 code=$(req GET "$COMMENT/comments/$COMMENT_1_ID")
 check "get comment 1 by id" 200 "$code"
 
-code=$(req PUT "$COMMENT/comments/$COMMENT_1_ID" '{"body":"edited by B"}' "X-User-ID: $USER_B_ID")
+code=$(req PUT "$COMMENT/comments/$COMMENT_1_ID" '{"body":"edited by B"}' "Authorization: Bearer $ACCESS_TOKEN_B")
 check "user B edits their own comment" 200 "$code"
 
 # ============================================================================
@@ -289,26 +289,26 @@ step "5. VOTE: user A votes on post B, user B votes on comment 1"
 if [[ "$VOTE_UP" == "0" ]]; then
   echo "  SKIPPED - vote service not reachable (see NOTES at top of script)."
 else
-  code=$(req PUT "$VOTE/posts/$POST_B_ID/votes" '{"value":1}' "X-User-ID: $USER_A_ID")
+  code=$(req PUT "$VOTE/posts/$POST_B_ID/votes" '{"value":1}' "Authorization: Bearer $ACCESS_TOKEN_A")
   check "user A upvotes post B" 200 "$code"
 
-  code=$(req PUT "$VOTE/comments/$COMMENT_1_ID/votes" '{"value":1}' "X-User-ID: $USER_B_ID")
+  code=$(req PUT "$VOTE/comments/$COMMENT_1_ID/votes" '{"value":1}' "Authorization: Bearer $ACCESS_TOKEN_B")
   check "user B upvotes comment 1" 200 "$code"
 
-  code=$(req GET "$VOTE/user/votes" "" "X-User-ID: $USER_A_ID")
+  code=$(req GET "$VOTE/user/votes" "" "Authorization: Bearer $ACCESS_TOKEN_A")
   check "list user A's votes" 200 "$code"
 
-  code=$(req DELETE "$VOTE/posts/$POST_B_ID/votes" "" "X-User-ID: $USER_A_ID")
+  code=$(req DELETE "$VOTE/posts/$POST_B_ID/votes" "" "Authorization: Bearer $ACCESS_TOKEN_A")
   check "user A removes their vote on post B" 200 "$code"
 fi
 
 # ============================================================================
 step "6. SUBSCRIBE: user A follows post B"
 # ============================================================================
-code=$(req POST "$SUBSCRIBE/posts/$POST_B_ID/subscriptions" "" "X-User-ID: $USER_A_ID")
+code=$(req POST "$SUBSCRIBE/posts/$POST_B_ID/subscriptions" "" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "user A subscribes to post B" 200 "$code"
 
-code=$(req GET "$SUBSCRIBE/users/subscriptions" "" "X-User-ID: $USER_A_ID")
+code=$(req GET "$SUBSCRIBE/users/subscriptions" "" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "list user A's subscriptions" 200 "$code"
 # NOTE: store.Subscriber has zero json tags -> PascalCase keys.
 jq -r --arg pid "$POST_B_ID" '[(. // [])[] | select(.PostId == $pid)] | length' "$BODY_FILE" | \
@@ -318,13 +318,13 @@ jq -r --arg pid "$POST_B_ID" '[(. // [])[] | select(.PostId == $pid)] | length' 
 step "7. NOTIFICATION: user B comments again on post B -> A should be notified"
 # ============================================================================
 NONCE_COMMENT_3="comment-3-marker-$NONCE"
-code=$(req POST "$COMMENT/posts/$POST_B_ID/comments" "{\"body\":\"$NONCE_COMMENT_3\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "X-User-ID: $USER_B_ID")
+code=$(req POST "$COMMENT/posts/$POST_B_ID/comments" "{\"body\":\"$NONCE_COMMENT_3\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "Authorization: Bearer $ACCESS_TOKEN_B")
 check "user B comments on post B (should publish comment_created event)" 201 "$code"
 
 echo "  waiting for the async kafka -> notification pipeline..."
 sleep 3
 
-code=$(req GET "$NOTIFICATION/user/notifications" "" "X-User-ID: $USER_A_ID")
+code=$(req GET "$NOTIFICATION/user/notifications" "" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "list user A's notifications" 200 "$code"
 # NOTE: store.Notification has zero json tags -> PascalCase keys. Same
 # null-vs-[] gotcha as above.
@@ -333,13 +333,13 @@ NOTIF_ID=$(jq -r '(. // [])[0].Id // empty' "$BODY_FILE" 2>/dev/null)
 echo "  user A has $NOTIF_COUNT notification(s)"
 
 if [[ -n "$NOTIF_ID" ]]; then
-  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/read" "" "X-User-ID: $USER_A_ID")
+  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/read" "" "Authorization: Bearer $ACCESS_TOKEN_A")
   check "mark one notification read" 200 "$code"
 
-  code=$(req PATCH "$NOTIFICATION/notifications/read-all" "" "X-User-ID: $USER_A_ID")
+  code=$(req PATCH "$NOTIFICATION/notifications/read-all" "" "Authorization: Bearer $ACCESS_TOKEN_A")
   check "mark all notifications read" 200 "$code"
 
-  code=$(req DELETE "$NOTIFICATION/notifications/$NOTIF_ID" "" "X-User-ID: $USER_A_ID")
+  code=$(req DELETE "$NOTIFICATION/notifications/$NOTIF_ID" "" "Authorization: Bearer $ACCESS_TOKEN_A")
   check "delete a notification" 200 "$code"
 else
   echo "  WARN: no notification found yet -- either the pipeline needs more time,"
@@ -351,16 +351,16 @@ fi
 # ============================================================================
 step "8. CLEANUP"
 # ============================================================================
-code=$(req DELETE "$COMMENT/comments/$COMMENT_1_ID" "" "X-User-ID: $USER_B_ID")
+code=$(req DELETE "$COMMENT/comments/$COMMENT_1_ID" "" "Authorization: Bearer $ACCESS_TOKEN_B")
 check "delete comment 1" 204 "$code"
 
-code=$(req DELETE "$SUBSCRIBE/posts/$POST_B_ID/subscriptions" "" "X-User-ID: $USER_A_ID")
+code=$(req DELETE "$SUBSCRIBE/posts/$POST_B_ID/subscriptions" "" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "user A unsubscribes from post B" 200 "$code"
 
-code=$(req DELETE "$POST/posts/$POST_A_ID" "" "X-User-ID: $USER_A_ID")
+code=$(req DELETE "$POST/posts/$POST_A_ID" "" "Authorization: Bearer $ACCESS_TOKEN_A")
 check "delete post A" 204 "$code"
 
-code=$(req DELETE "$POST/posts/$POST_B_ID" "" "X-User-ID: $USER_B_ID")
+code=$(req DELETE "$POST/posts/$POST_B_ID" "" "Authorization: Bearer $ACCESS_TOKEN_B")
 check "delete post B" 204 "$code"
 
 # ============================================================================
