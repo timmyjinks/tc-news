@@ -13,19 +13,19 @@ type KafkaService struct {
 	Consumer *Consumer
 }
 
-func NewKafkaService(topic string) *KafkaService {
+func NewKafkaService(addr string, topic string) *KafkaService {
 	dialer := kafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
 	}
 
-	_, err := dialer.DialLeader(context.Background(), "tcp", "kafka-service:9092", topic, 0)
+	_, err := dialer.DialLeader(context.Background(), "tcp", addr, topic, 0)
 	if err != nil {
 		log.Println("[WARN]" + err.Error())
 	}
 
 	c := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     []string{"kafka-service:9092"},
+		Brokers:     []string{addr},
 		Partition:   0,
 		GroupID:     fmt.Sprintf("%s-group", topic),
 		Topic:       topic,

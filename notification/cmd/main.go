@@ -19,7 +19,7 @@ import (
 func main() {
 	config := Load()
 
-	db, err := database.NewPostgresStorage()
+	db, err := database.NewPostgresStorage(config.dbURI)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func main() {
 
 	subscribeClient := httpclient.NewSubscribeClient(config.subscribeHTTPAddr)
 
-	queue := kafka.NewKafkaService("notifications")
+	queue := kafka.NewKafkaService(config.kafkaAddr, "notifications")
 
 	ctx := context.Background()
 
