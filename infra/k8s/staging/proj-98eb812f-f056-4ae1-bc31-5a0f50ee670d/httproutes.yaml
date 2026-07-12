@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tc-apps
+  labels:
+    managed-by: tysoncloud
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: tc-news-routes
+  namespace: proj-98eb812f-f056-4ae1-bc31-5a0f50ee670d
+spec:
+  parentRefs:
+    - name: tysoncloud-gateway
+      namespace: tc-system
+  hostnames:
+    - "tc.tysonjenkins.dev"
+  rules:
+    # --- most specific first: nested sub-resources under /posts/{id} ---
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "/posts/[^/]+/comments(/.*)?$"
+      backendRefs:
+        - name: svc-2ce5b4c6-c8a3-49d2-bd5f-4936c569db79
+          port: 80
+
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "/posts/[^/]+/votes$"
+      backendRefs:
+        - name: svc-ac3c5b67-e6dd-49ea-bb1d-38930bf4d004
+          port: 80
+
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "/posts/[^/]+/subscriptions$"
+      backendRefs:
+        - name: svc-afe57b67-eb13-4791-bbfe-a1303dbb4beb
+          port: 80
+
+    # note: /posts/{id}/subscribers is intentionally NOT routed here —
+    # it's the internal service-to-service call used by notification,
+    # and falls through to a 404 at the gateway.
+
+    # --- nested sub-resources under /comments/{id} ---
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "/comments/[^/]+/votes$"
+      backendRefs:
+        - name: svc-ac3c5b67-e6dd-49ea-bb1d-38930bf4d004
+          port: 80
+
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "/comments/[^/]+$"
+      backendRefs:
+        - name: svc-2ce5b4c6-c8a3-49d2-bd5f-4936c569db79
+          port: 80
+
+    # --- /users/subscriptions before generic /users/{id} ---
+    - matches:
+        - path:
+            type: Exact
+            value: "/users/subscriptions"
+      backendRefs:
+        - name: svc-afe57b67-eb13-4791-bbfe-a1303dbb4beb
+          port: 80
+
+    # --- generic /posts and /posts/{id} (post service) ---
+    - matches:
+        - path:
+            type: Exact
+            value: "/posts"
+        - path:
+            type: RegularExpression
+            value: "/posts/[^/]+$"
+      backendRefs:
+        - name: svc-5c78117c-d405-4fef-9afd-e4091ad66dc0
+          port: 80
+
+    # --- auth / users ---
+    - matches:
+        - path:
+            type: Exact
+            value: "/users"
+        - path:
+            type: RegularExpression
+            value: "/users/[^/]+$"
+        - path:
+            type: PathPrefix
+            value: "/auth"
+      backendRefs:
+        - name: svc-1bdc68b5-ace6-4549-82ad-8e061c4434ab
+          port: 80
+
+    # --- votes: the two "list mine" / current-user endpoints ---
+    - matches:
+        - path:
+            type: Exact
+            value: "/user/votes"
+      backendRefs:
+        - name: svc-ac3c5b67-e6dd-49ea-bb1d-38930bf4d004
+          port: 80
+
+    # --- notifications ---
+    - matches:
+        - path:
+            type: Exact
+            value: "/user/notifications"
+        - path:
+            type: PathPrefix
+            value: "/notifications"
+      backendRefs:
+        - name: svc-73e46021-9400-4ab9-822f-09747879a073
+          port: 80
