@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -148,7 +149,7 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	exists, err := app.store.Exists(refreshTokenCookie.Value)
 	if err != nil {
-		if err := app.store.Delete(refreshTokenCookie.String()); err != nil {
+		if err := app.store.Delete(refreshTokenCookie.Value); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -159,37 +160,29 @@ func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized login again", http.StatusUnauthorized)
 		return
 	}
-	if err := app.store.Delete(refreshTokenCookie.String()); err != nil {
+	if err := app.store.Delete(refreshTokenCookie.Value); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	claims, err := app.verifyToken(tokenString)
+	data, err := app.verifyToken(tokenString)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	userId, err := claims.GetSubject()
-	if err != nil || userId == "" {
-		http.Error(w, "invalid token subject", http.StatusUnauthorized)
-		return
-	}
-
-	// Re-fetch the user so a deleted/renamed account can't keep refreshing,
-	// and so the reissued token carries an up-to-date Name.
-	user, err := app.userStore.GetById(userId)
+	name, err := data.GetSubject()
 	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	refreshToken := generateRefreshToken()
-	if err := app.store.Create(refreshToken, store.Data{Id: user.Id, Name: user.Name, TTL: time.Hour * 24 * 7}); err != nil {
+	if err := app.store.Create(refreshToken, store.Data{Name: name, TTL: time.Hour * 24 * 7}); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	accessToken, err := app.generateAccessToken(store.Data{Id: user.Id, Name: user.Name, TTL: time.Minute * 15})
+	accessToken, err := app.generateAccessToken(store.Data{Name: name, TTL: time.Minute * 15})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -333,11 +326,11 @@ func (app *application) verifyToken(tokenString string) (jwt.MapClaims, error) {
 		}
 		return []byte(app.jwtSecret), nil
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
 		return nil, err
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
+	if !ok {
 		return nil, fmt.Errorf("invalid token")
 	}
 	return claims, nil
