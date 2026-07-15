@@ -30,7 +30,7 @@ jobs:
           - name: comment
             dockerfile: ./comment/Dockerfile
           - name: event 
-            dockerfile: ./event/Dockerfile
+            dockerfile: ./event/cmd/Dockerfile
           
     steps:
       - name: Checkout repo
