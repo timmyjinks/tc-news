@@ -283,6 +283,41 @@ check "get comment 1 by id" 200 "$code"
 code=$(req PUT "$COMMENT/comments/$COMMENT_1_ID" '{"body":"edited by B"}' "Authorization: Bearer $ACCESS_TOKEN_B")
 check "user B edits their own comment" 200 "$code"
 
+# --------------------------------------------------------------------------
+step "4a. MESSAGE SERVICE: reply from A on B's comment publishes"
+step "     comment_reply_created -> only B (the parent comment's author) is notified"
+# --------------------------------------------------------------------------
+echo "  waiting for the async kafka -> notification pipeline..."
+sleep 3
+
+code=$(req GET "$NOTIFICATION/user/notifications" "" "Authorization: Bearer $ACCESS_TOKEN_B")
+check "list user B's notifications after A's reply" 200 "$code"
+# NOTE: store.Notification has zero json tags -> PascalCase keys, same as
+# store.Comment/store.Subscriber/store.Vote above.
+REPLY_NOTIF_ID=$(jq -r '(. // [])[] | select(.Body == "Someone replied to your comment") | .Id' "$BODY_FILE" | head -n1)
+reply_notif_ok=$([[ -n "$REPLY_NOTIF_ID" ]] && echo true || echo false)
+check_true "user B received a reply notification (distinct from comment_created)" "$reply_notif_ok"
+
+if [[ -n "$REPLY_NOTIF_ID" ]]; then
+  code=$(req DELETE "$NOTIFICATION/notifications/$REPLY_NOTIF_ID" "" "Authorization: Bearer $ACCESS_TOKEN_B")
+  check "clean up B's reply notification" 200 "$code"
+fi
+
+# Self-reply sanity check: B replying to their own comment should NOT
+# generate a notification (handler.go skips when ParentAuthorId == UserId).
+NONCE_COMMENT_SELF_REPLY="comment-self-reply-marker-$NONCE"
+code=$(req POST "$COMMENT/posts/$POST_A_ID/comments" "{\"body\":\"$NONCE_COMMENT_SELF_REPLY\",\"parent_id\":\"$COMMENT_1_ID\"}" "Authorization: Bearer $ACCESS_TOKEN_B")
+check "user B replies to their own comment" 201 "$code"
+
+echo "  waiting for the async kafka -> notification pipeline..."
+sleep 3
+
+code=$(req GET "$NOTIFICATION/user/notifications" "" "Authorization: Bearer $ACCESS_TOKEN_B")
+check "list user B's notifications after self-reply" 200 "$code"
+SELF_REPLY_NOTIF_COUNT=$(jq -r '[(. // [])[] | select(.Body == "Someone replied to your comment")] | length' "$BODY_FILE" 2>/dev/null)
+self_reply_skipped_ok=$([[ "${SELF_REPLY_NOTIF_COUNT:-1}" == "0" ]] && echo true || echo false)
+check_true "self-reply does not generate a notification" "$self_reply_skipped_ok"
+
 # ============================================================================
 step "5. VOTE: user A votes on post B, user B votes on comment 1"
 # ============================================================================
