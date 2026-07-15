@@ -324,20 +324,29 @@ check "user B comments on post B (should publish comment_created event)" 201 "$c
 echo "  waiting for the async kafka -> notification pipeline..."
 sleep 3
 
+# GET is what "delivers" a notification -- any PENDING rows for this user
+# flip to DELIVERED as a side effect of this call.
 code=$(req GET "$NOTIFICATION/user/notifications" "" "Authorization: Bearer $ACCESS_TOKEN_A")
-check "list user A's notifications" 200 "$code"
-# NOTE: store.Notification has zero json tags -> PascalCase keys. Same
-# null-vs-[] gotcha as above.
+check "list user A's notifications (auto-delivers PENDING ones)" 200 "$code"
 NOTIF_COUNT=$(jq -r '(. // []) | length' "$BODY_FILE" 2>/dev/null)
 NOTIF_ID=$(jq -r '(. // [])[0].Id // empty' "$BODY_FILE" 2>/dev/null)
-echo "  user A has $NOTIF_COUNT notification(s)"
+echo "  user A has $NOTIF_COUNT notification(s), using NOTIF_ID=$NOTIF_ID"
 
 if [[ -n "$NOTIF_ID" ]]; then
-  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/read" "" "Authorization: Bearer $ACCESS_TOKEN_A")
-  check "mark one notification read" 200 "$code"
+  delivered_ok=$(jq -r --arg id "$NOTIF_ID" '(. // [])[] | select(.Id == $id) | .Status == "DELIVERED"' "$BODY_FILE" 2>/dev/null)
+  check_true "notification auto-transitioned PENDING -> DELIVERED on list" "${delivered_ok:-false}"
 
-  code=$(req PATCH "$NOTIFICATION/notifications/read-all" "" "Authorization: Bearer $ACCESS_TOKEN_A")
-  check "mark all notifications read" 200 "$code"
+  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/status" '{"status":"READ"}' "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "legal transition DELIVERED -> READ" 200 "$code"
+
+  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/status" '{"status":"DELIVERED"}' "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "illegal transition READ -> DELIVERED is rejected" 400 "$code"
+
+  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/status" '{"status":"DISMISSED"}' "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "legal transition READ -> DISMISSED" 200 "$code"
+
+  code=$(req PATCH "$NOTIFICATION/notifications/$NOTIF_ID/status" '{"status":"READ"}' "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "illegal transition DISMISSED -> READ is rejected (terminal state)" 400 "$code"
 
   code=$(req DELETE "$NOTIFICATION/notifications/$NOTIF_ID" "" "Authorization: Bearer $ACCESS_TOKEN_A")
   check "delete a notification" 200 "$code"
@@ -346,6 +355,34 @@ else
   echo "        or user A subscribed after post B's *original* creation and the"
   echo "        notification service correctly only fires on new comment_created"
   echo "        events (i.e. this may be expected, not a failure)."
+fi
+
+# ----------------------------------------------------------------------------
+step "7b. NOTIFICATION: bulk mark-all-read via a second notification"
+# ----------------------------------------------------------------------------
+NONCE_COMMENT_4="comment-4-marker-$NONCE"
+code=$(req POST "$COMMENT/posts/$POST_B_ID/comments" "{\"body\":\"$NONCE_COMMENT_4\",\"parent_id\":\"00000000-0000-0000-0000-000000000000\"}" "Authorization: Bearer $ACCESS_TOKEN_B")
+check "user B comments on post B again (second notification event)" 201 "$code"
+
+sleep 3
+
+code=$(req GET "$NOTIFICATION/user/notifications" "" "Authorization: Bearer $ACCESS_TOKEN_A")
+check "list user A's notifications (auto-delivers the new one)" 200 "$code"
+NOTIF_ID_2=$(jq -r '(. // [])[0].Id // empty' "$BODY_FILE" 2>/dev/null)
+
+if [[ -n "$NOTIF_ID_2" ]]; then
+  code=$(req PATCH "$NOTIFICATION/notifications/read-all" "" "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "bulk mark-all-read" 200 "$code"
+
+  code=$(req GET "$NOTIFICATION/user/notifications" "" "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "list user A's notifications after mark-all-read" 200 "$code"
+  read_ok=$(jq -r --arg id "$NOTIF_ID_2" '(. // [])[] | select(.Id == $id) | .Status == "READ"' "$BODY_FILE" 2>/dev/null)
+  check_true "notification transitioned DELIVERED -> READ via mark-all-read" "${read_ok:-false}"
+
+  code=$(req DELETE "$NOTIFICATION/notifications/$NOTIF_ID_2" "" "Authorization: Bearer $ACCESS_TOKEN_A")
+  check "delete second notification" 200 "$code"
+else
+  echo "  WARN: no second notification found -- pipeline may need more time."
 fi
 
 # ============================================================================
