@@ -28,7 +28,21 @@ async function publishComment(comment) {
   });
 }
 
+async function publishCommentReply(reply) {
+  await producer.send({
+    topic: config.kafkaTopic,
+    messages: [{
+      value: JSON.stringify({
+        id: "",
+        type: "comment_reply_created",
+        payload: reply,
+      }),
+    }],
+  });
+}
+
 module.exports = {
   connect,
   publishComment,
+  publishCommentReply,
 };

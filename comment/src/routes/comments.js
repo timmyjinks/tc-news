@@ -4,6 +4,7 @@ const { pool } = require("../db");
 const kafka = require("../kafka");
 const postClient = require("../postClient");
 const requireAuth = require("../middleware/requireAuth");
+const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 
 router.get("/comments/:commentId", async (req, res, next) => {
   try {
@@ -41,9 +42,9 @@ router.post("/posts/:postId/comments", requireAuth, async (req, res, next) => {
   try {
 
     const userId = req.userId;
+    const parentId = req.body.parent_id ?? ZERO_UUID;
 
     const exists = await postClient.postExists(req.params.postId);
-
     if (!exists)
       return res.status(404).send("Post does not exist");
 
@@ -51,28 +52,43 @@ router.post("/posts/:postId/comments", requireAuth, async (req, res, next) => {
             INSERT INTO comments(parent_id,post_id,user_id,body)
             VALUES($1,$2,$3,$4)
             RETURNING *
-        `, [
-      req.body.parent_id ??
-      "00000000-0000-0000-0000-000000000000",
-      req.params.postId,
-      userId,
-      req.body.body
-    ]);
+        `, [parentId, req.params.postId, userId, req.body.body]);
 
-    await kafka.publishComment({
-      comment_id: rows[0].id,
-      post_id: rows[0].post_id,
-      user_id: rows[0].user_id,
-      body: rows[0].body,
-    });
+    const created = rows[0];
 
-    res.status(201).json(rows[0]);
+    if (parentId !== ZERO_UUID) {
+      const parent = await pool.query(
+        "SELECT user_id FROM comments WHERE id=$1",
+        [parentId]
+      );
+
+      if (parent.rows.length) {
+        await kafka.publishCommentReply({
+          comment_id: created.id,
+          post_id: created.post_id,
+          user_id: created.user_id,
+          parent_comment_id: parentId,
+          parent_author_id: parent.rows[0].user_id,
+          body: created.body,
+        });
+      }
+    } else {
+      await kafka.publishComment({
+        comment_id: created.id,
+        post_id: created.post_id,
+        user_id: created.user_id,
+        body: created.body,
+      });
+    }
+
+    res.status(201).json(created);
 
   } catch (err) {
     next(err);
   }
 
 });
+
 
 router.put("/comments/:commentId", requireAuth, async (req, res, next) => {
 
