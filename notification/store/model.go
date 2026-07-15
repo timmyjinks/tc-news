@@ -6,7 +6,7 @@ type Notification struct {
 	Id        string    `sql:"id"`
 	UserId    string    `sql:"user_id"`
 	Body      string    `sql:"body"`
-	Read      bool      `sql:"read"`
+	Status    string    `sql:"status"`
 	CreatedAt time.Time `sql:"created_at"`
 }
 
@@ -14,6 +14,6 @@ type NotificationUpdate struct {
 	Id        string
 	UserId    string
 	Body      string
-	Read      bool
+	Status    string
 	CreatedAt time.Time
 }

@@ -18,7 +18,7 @@ func NewPostgresStorage(dsn string) (*sql.DB, error) {
         id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id    uuid NOT NULL,
         body       TEXT DEFAULT '',
-        read       BOOLEAN NOT NULL DEFAULT false,
+        status     TEXT NOT NULL DEFAULT 'PENDING',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
 `); err != nil {

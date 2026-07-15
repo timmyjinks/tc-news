@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -16,6 +17,10 @@ type application struct {
 
 type VoteInsert struct {
 	Value int `json:"value"`
+}
+
+type StatusUpdate struct {
+	Status string `json:"status"`
 }
 
 // ListNotifications godoc
@@ -38,39 +43,69 @@ func (app *application) ListNotifications(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(&notifications)
 }
 
-// MarkNotificationRead godoc
-// @Summary      Mark a notification as read
-// @Description  Marks a single notification as read for the authenticated user
+// UpdateNotificationStatus godoc
+// @Summary      Transition a notification's status
+// @Description  Validates the transition against the notification state machine and applies it
 // @Tags         notifications
-// @Param        notification_id  path      string  true  "Notification ID"
-// @Param        X-User-ID        header    string  true  "ID of the authenticated user"
-// @Success      200              "Notification marked as read"
+// @Accept       json
+// @Produce      json
+// @Param        notification_id  path      string        true  "Notification ID"
+// @Param        X-User-ID        header    string        true  "ID of the authenticated user"
+// @Param        status           body      StatusUpdate  true  "Target status"
+// @Success      200              {object}  store.Notification
+// @Failure      400              {string}  string  "Invalid status or illegal transition"
 // @Failure      401              {string}  string  "unauthorized"
 // @Failure      500              {string}  string  "Internal server error"
-// @Router       /notifications/{notification_id}/read [patch]
-func (app *application) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
+// @Router       /notifications/{notification_id}/status [patch]
+func (app *application) UpdateNotificationStatus(w http.ResponseWriter, r *http.Request) {
 	userId := userIDFromContext(r)
 	notificationId := mux.Vars(r)["notification_id"]
-	err := app.store.Update(notificationId, userId)
+
+	var body StatusUpdate
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if !isValidStatus(body.Status) {
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+
+	current, err := app.store.GetStatus(notificationId, userId)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "Notification does not exist", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !canTransition(current, body.Status) {
+		http.Error(w, fmt.Sprintf("illegal transition: %s -> %s", current, body.Status), http.StatusBadRequest)
+		return
+	}
+
+	updated, err := app.store.UpdateStatus(notificationId, userId, body.Status)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	json.NewEncoder(w).Encode(updated)
 }
 
 // MarkAllNotificationsRead godoc
 // @Summary      Mark all notifications as read
-// @Description  Marks every notification as read for the authenticated user
+// @Description  Transitions every DELIVERED notification for the authenticated user to READ
 // @Tags         notifications
 // @Param        X-User-ID  header  string  true  "ID of the authenticated user"
-// @Success      200        "All notifications marked as read"
+// @Success      200        "All eligible notifications marked as read"
 // @Failure      401        {string}  string  "unauthorized"
 // @Failure      500        {string}  string  "Internal server error"
 // @Router       /notifications/read-all [patch]
 func (app *application) MarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	userId := userIDFromContext(r)
-	err := app.store.UpdateAll(userId)
-	if err != nil {
+	if err := app.store.MarkAllRead(userId); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -108,9 +143,8 @@ func (app *application) Run(addr string) error {
 	}
 
 	auth := requireAuth(app.jwtSecret)
-
 	r.HandleFunc("/user/notifications", auth(app.ListNotifications)).Methods("GET")
-	r.HandleFunc("/notifications/{notification_id}/read", auth(app.MarkNotificationRead)).Methods("PATCH")
+	r.HandleFunc("/notifications/{notification_id}/status", auth(app.UpdateNotificationStatus)).Methods("PATCH")
 	r.HandleFunc("/notifications/read-all", auth(app.MarkAllNotificationsRead)).Methods("PATCH")
 	r.HandleFunc("/notifications/{notification_id}", auth(app.DeleteNotification)).Methods("DELETE")
 
