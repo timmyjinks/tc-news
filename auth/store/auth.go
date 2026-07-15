@@ -10,11 +10,14 @@ func (s *RedisStore) Exists(key string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	fmt.Println(count, "count")
 	if count == 0 {
 		return false, nil
 	}
 	return true, nil
+}
+
+func (s *RedisStore) Get(key string) (map[string]string, error) {
+	return s.db.HGetAll(context.Background(), key).Result()
 }
 
 func (s *RedisStore) Create(key string, value Data) error {

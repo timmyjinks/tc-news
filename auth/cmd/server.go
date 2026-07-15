@@ -4,10 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -133,63 +131,25 @@ func (app *application) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure      500            {object}  ErrorResponse  "internal error"
 // @Router       /auth/refresh [post]
 func (app *application) Refresh(w http.ResponseWriter, r *http.Request) {
-	bearer := r.Header.Get("Authorization")
 	refreshTokenCookie, err := r.Cookie("refresh_token")
 	if err != nil {
 		http.Error(w, "not authorized user", http.StatusUnauthorized)
 		return
 	}
 
-	const prefix = "Bearer "
-	if !strings.HasPrefix(bearer, prefix) {
-		http.Error(w, "not authorized user", http.StatusUnauthorized)
-		return
-	}
-	tokenString := strings.TrimPrefix(bearer, prefix)
-
-	exists, err := app.store.Exists(refreshTokenCookie.Value)
-	if err != nil {
-		if err := app.store.Delete(refreshTokenCookie.Value); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if !exists {
-		http.Error(w, "unauthorized login again", http.StatusUnauthorized)
-		return
-	}
-	if err := app.store.Delete(refreshTokenCookie.Value); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
-	data, err := app.verifyToken(tokenString)
+	user, err := app.store.Get(refreshTokenCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-	id, err := data.GetSubject()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
-	user, err := app.userStore.GetById(id)
-	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
 	refreshToken := generateRefreshToken()
-	if err := app.store.Create(refreshToken, store.Data{Id: id, Name: user.Name, TTL: time.Hour * 24 * 7}); err != nil {
+	if err := app.store.Create(refreshToken, store.Data{Id: user["id"], Name: user["name"], TTL: time.Hour * 24 * 7}); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	accessToken, err := app.generateAccessToken(store.Data{Id: id, Name: user.Name, TTL: time.Minute * 15})
+	accessToken, err := app.generateAccessToken(store.Data{Id: user["id"], Name: user["name"], TTL: time.Minute * 15})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -324,21 +284,4 @@ func (app *application) generateAccessToken(data store.Data) (string, error) {
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(data.TTL)),
 	})
 	return token.SignedString([]byte(app.jwtSecret))
-}
-
-func (app *application) verifyToken(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-		return []byte(app.jwtSecret), nil
-	})
-	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
-		return nil, err
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid token")
-	}
-	return claims, nil
 }
