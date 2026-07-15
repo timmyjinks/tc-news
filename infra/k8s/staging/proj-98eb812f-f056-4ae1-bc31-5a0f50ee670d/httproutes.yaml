@@ -125,5 +125,5 @@ spec:
             type: RegularExpression
             value: "/events"
       backendRefs:
-        - name: _
+        - name: svc-173d97ca-14ce-498c-8aa2-a39c1b34168b
           port: 80
