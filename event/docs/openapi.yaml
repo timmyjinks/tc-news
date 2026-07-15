@@ -1,0 +1,160 @@
+openapi: 3.0.0
+info:
+  contact: {}
+  description: API for listing and marking user notifications as read.
+  title: Notification Service API
+  version: "3.0"
+paths:
+  "/notifications/{notification_id}":
+    delete:
+      description: Permanently deletes a notification owned by the authenticated user
+      parameters:
+        - description: Notification ID
+          in: path
+          name: notification_id
+          required: true
+          schema:
+            type: string
+        - description: ID of the authenticated user
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification deleted
+        "400":
+          description: Notification does not exist
+          content:
+            "*/*":
+              schema:
+                type: string
+        "401":
+          description: unauthorized
+          content:
+            "*/*":
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Delete a notification
+      tags:
+        - notifications
+  "/notifications/{notification_id}/read":
+    patch:
+      description: Marks a single notification as read for the authenticated user
+      parameters:
+        - description: Notification ID
+          in: path
+          name: notification_id
+          required: true
+          schema:
+            type: string
+        - description: ID of the authenticated user
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification marked as read
+        "401":
+          description: unauthorized
+          content:
+            "*/*":
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Mark a notification as read
+      tags:
+        - notifications
+  /notifications/read-all:
+    patch:
+      description: Marks every notification as read for the authenticated user
+      parameters:
+        - description: ID of the authenticated user
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: All notifications marked as read
+        "401":
+          description: unauthorized
+          content:
+            "*/*":
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            "*/*":
+              schema:
+                type: string
+      summary: Mark all notifications as read
+      tags:
+        - notifications
+  /user/notifications:
+    get:
+      description: Retrieves all notifications for the authenticated user
+      parameters:
+        - description: ID of the authenticated user
+          in: header
+          name: X-User-ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/store.Notification"
+                type: array
+        "401":
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: string
+      summary: List a user's notifications
+      tags:
+        - notifications
+servers:
+  - url: //localhost:8080
+components:
+  schemas:
+    store.Notification:
+      properties:
+        body:
+          type: string
+        createdAt:
+          type: string
+        id:
+          type: string
+        read:
+          type: boolean
+        userId:
+          type: string
+      type: object

@@ -119,3 +119,11 @@ spec:
       backendRefs:
         - name: svc-73e46021-9400-4ab9-822f-09747879a073
           port: 80
+
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "/events"
+      backendRefs:
+        - name: _
+          port: 80

@@ -29,6 +29,8 @@ jobs:
             dockerfile: ./vote/cmd/Dockerfile
           - name: comment
             dockerfile: ./comment/Dockerfile
+          - name: event 
+            dockerfile: ./event/Dockerfile
           
     steps:
       - name: Checkout repo

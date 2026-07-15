@@ -2,7 +2,7 @@ const { Kafka } = require("kafkajs");
 const config = require("./config");
 
 const kafka = new Kafka({
-  brokers: [config.kafkaBroker],
+  brokers: [config.kafkaBroker, "events"],
 });
 
 const producer = kafka.producer();
