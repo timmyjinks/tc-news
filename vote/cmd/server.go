@@ -29,9 +29,12 @@ type VoteInsert struct {
 // @Router       /user/votes [get]
 func (app *application) ListUserVotes(w http.ResponseWriter, r *http.Request) {
 	userId := userIDFromContext(r)
-	votes := app.store.Get(userId)
-	err := json.NewEncoder(w).Encode(votes)
+	total, err := app.store.Get(userId)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.NewEncoder(w).Encode(map[string]int{"total": total}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

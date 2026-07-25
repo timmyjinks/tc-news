@@ -1,11 +1,19 @@
 package store
 
-func (s *PostgreStore) Get(userId string) error {
-	_, err := s.db.Query("SELECT SUM(value) FROM votes where user_id = $1", userId)
+import "database/sql"
+
+func (s *PostgreStore) Get(userId string) (int, error) {
+	var sum sql.NullInt64
+	err := s.db.QueryRow(
+		"SELECT SUM(value) FROM votes WHERE user_id = $1", userId,
+	).Scan(&sum)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	if !sum.Valid {
+		return 0, nil
+	}
+	return int(sum.Int64), nil
 }
 
 func (s *PostgreStore) InsertPost(f VoteInsert) error {
