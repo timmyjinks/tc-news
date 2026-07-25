@@ -12,7 +12,13 @@ services:
       - tc-news
     depends_on:
       subscribe-db:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   subscribe-db:
     image: "postgres:16"
     ports:
@@ -22,6 +28,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   comment:
     build:
@@ -35,11 +46,23 @@ services:
       POST_SERVICE_URL: "http://post:8080"
     depends_on:
       comment-db:
-        condition: service_started
+        condition: service_healthy
       kafka-service:
-        condition: service_started
+        condition: service_healthy
       post:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').createConnection(8080,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   comment-db:
     networks:
       - tc-news
@@ -47,6 +70,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   notification:
     build:
@@ -58,13 +86,20 @@ services:
       - tc-news
     environment:
       SUBSCRIBE_GRPC_ADDR: "subscription:9090"
+      SUBSCRIBE_HTTP_ADDR: "http://subscription:8080"
     depends_on:
       notification-db:
-        condition: service_started
+        condition: service_healthy
       kafka-service:
-        condition: service_started
+        condition: service_healthy
       subscription:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   notification-db:
     image: "postgres:16"
     networks:
@@ -72,6 +107,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   vote:
     build:
@@ -83,7 +123,13 @@ services:
       - tc-news
     depends_on:
       vote-db:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   vote-db:
     image: "postgres:16"
     networks:
@@ -91,6 +137,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   post:
     build:
@@ -102,7 +153,13 @@ services:
       - tc-news
     depends_on:
       post-db:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   post-db:
     image: "postgres:16"
     networks:
@@ -110,6 +167,51 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # NOTE: this service was defined in event/ (Dockerfile, docs, kafka consumer,
+  # store) but was missing from docker-compose.yaml entirely. It consumes the
+  # "events" Kafka topic (see event/cmd/main.go) and serves GET /events on
+  # :8080, so it needs its own Postgres and a place in the Kafka dependency
+  # chain, same shape as notification/comment.
+  event:
+    build:
+      context: ./event
+      dockerfile: ./cmd/Dockerfile
+    ports:
+      - "8087:8080"
+    networks:
+      - tc-news
+    environment:
+      DB_HOST: "event-db"
+      KAFKA_ADDR: "kafka-service:9092"
+    depends_on:
+      event-db:
+        condition: service_healthy
+      kafka-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  event-db:
+    image: "postgres:16"
+    networks:
+      - tc-news
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   auth:
     build:
@@ -119,10 +221,29 @@ services:
       - tc-news
     ports:
       - "8085:8080"
+    environment:
+      USER_DB_HOST: "auth-postgres-db"
+      SESSION_DB_HOST: "auth-db"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      auth-postgres-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   auth-db:
     image: "redis"
     networks:
       - tc-news
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   auth-postgres-db:
     image: "postgres:16"
     networks:
@@ -130,6 +251,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   kafka-service:
     image: apache/kafka:latest
@@ -147,6 +273,16 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_LOG_DIRS: /var/lib/kafka/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
 networks:
   tc-news:
